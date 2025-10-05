@@ -159,7 +159,7 @@ export default function TasksPage() {
     );
 
     if ('error' in validation) {
-      setFormError(validation.error);
+      setFormError(validation.error??null);
       return;
     }
 
@@ -223,7 +223,7 @@ export default function TasksPage() {
     );
 
     if ('error' in validation) {
-      setEditError(validation.error);
+      setEditError(validation.error??null);
       return;
     }
 

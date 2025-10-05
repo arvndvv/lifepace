@@ -239,7 +239,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const setLifeReflection = useCallback((weekId: string, reflection: ReflectionTag, color?: string) => {
     dispatch({ type: 'setLifeReflection', weekId, reflection, color });
   }, []);
+const setWeekWinManual = useCallback((weekId: string, fulfilled: boolean) => {
+  dispatch({ type: 'setWeekWinManual', weekId, fulfilled });
+}, []);
 
+const resetWeekWin = useCallback((weekId: string) => {
+  dispatch({ type: 'resetWeekWin', weekId });
+}, []);
   const value = useMemo<AppDataValue>(
     () => ({
       state,
@@ -253,7 +259,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setTaskStatus,
         setPreferences,
         importState,
-        setLifeReflection
+        setLifeReflection,
+        setWeekWinManual,
+      resetWeekWin,
       }
     }),
     [

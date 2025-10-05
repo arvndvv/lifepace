@@ -61,8 +61,8 @@ const surfaceThemeSchema: z.ZodType<SurfaceTheme> = z.union([
   z.literal('charcoal')
 ]);
 
-const preferencesSchema: z.ZodType<Preferences> = z.object({
-  reminderLeadMinutes: z.number().min(0).max(720),
+const preferencesSchema = z.object({
+  reminderLeadMinutes: z.number().min(0).max(720).default(15),
   defaultReminderTime: z.string().optional(),
   accentTheme: accentThemeSchema.default('aurora'),
   surfaceTheme: surfaceThemeSchema.default('indigo'),

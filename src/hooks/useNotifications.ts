@@ -8,9 +8,9 @@ declare global {
     showTrigger?: any;
   }
 
-  interface ServiceWorkerRegistration {
-    showNotification?: (title: string, options?: NotificationOptions) => Promise<void>;
-  }
+  // interface ServiceWorkerRegistration {
+  //   showNotification?: (title: string, options?: NotificationOptions) => Promise<void>;
+  // }
 
   interface Window {
     TimestampTrigger?: new (timestamp: number) => any;

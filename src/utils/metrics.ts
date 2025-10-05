@@ -94,7 +94,7 @@ export function filterDaySummariesByRange(
 ): Record<string, DaySummary> {
   const filtered: Record<string, DaySummary> = {};
   Object.entries(daySummaries).forEach(([date, summary]) => {
-    if (isDateWithin(date, range)) {
+    if (isDateWithin(date, { start: range.start, end: range.end, label: 'custom' })) {
       filtered[date] = summary;
     }
   });
