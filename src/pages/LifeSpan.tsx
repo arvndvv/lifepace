@@ -229,7 +229,7 @@ export default function LifeSpanPage() {
         <p className="mt-2 text-sm text-slate-400">
           {profile.name}, we&apos;re mapping from your birthday to {profile.lifeExpectancyYears}. Every cell is one week. Rose squares are weeks you have lived, the bright highlight is this week, and grey blocks are still ahead.
         </p>
-        <div className="mt-5 grid gap-4 text-sm text-slate-200 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 text-sm text-slate-200  grid-cols-3 md:grid-cols-3">
           <div className="rounded-2xl bg-slate-900/70 p-4">
             <p className="text-xs uppercase text-slate-400">Weeks lived</p>
             <p className="text-2xl font-semibold text-[color:var(--accent-300)]">{weeksLived.toLocaleString()}</p>
@@ -241,7 +241,7 @@ export default function LifeSpanPage() {
           <div className="rounded-2xl bg-slate-900/70 p-4 md:col-span-1">
             <p className="text-xs uppercase text-slate-400">Story so far</p>
             <p className="text-2xl font-semibold text-slate-100">{livedPercent.toFixed(1)}%</p>
-            <p className="mt-2 text-xs text-slate-400">Keep choosing moments you&apos;ll be proud to paint into the grid.</p>
+            <p className="mt-2 text-xs text-slate-400 hidden">Keep choosing moments you&apos;ll be proud to paint into the grid.</p>
           </div>
         </div>
       </section>

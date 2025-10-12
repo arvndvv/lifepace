@@ -11,6 +11,7 @@ export interface Task {
   startAt?: string; // ISO datetime for task start
   deadlineAt?: string; // ISO datetime for optional deadline
   reminderAt?: string; // ISO datetime for reminders
+  durationMinutes?: number; // Total minutes allocated when using duration-based planning
   status: TaskStatus;
   createdAt: string;
   updatedAt: string;

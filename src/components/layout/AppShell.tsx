@@ -84,7 +84,7 @@ export default function AppShell() {
           </nav>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-0 pb-20 md:px-0 md:pb-8">
+        <main className="flex-1 overflow-y-auto px-4 pb-20 md:px-0 md:pb-8">
           <Outlet />
         </main>
 

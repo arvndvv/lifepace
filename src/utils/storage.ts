@@ -32,6 +32,7 @@ const taskSchema: z.ZodType<Task> = z.object({
   startAt: z.string().optional(),
   deadlineAt: z.string().optional(),
   reminderAt: z.string().optional(),
+  durationMinutes: z.number().nonnegative().optional(),
   status: taskStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string()
@@ -284,4 +285,3 @@ export function parseImportedPayload(raw: string): AppState {
   }
   return normalizeAppState(result.data.state);
 }
-

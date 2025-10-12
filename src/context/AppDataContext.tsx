@@ -17,9 +17,10 @@ interface TaskDraft {
   title: string;
   description?: string;
   scheduledFor: string;
-  startAt: string;
+  startAt?: string;
   deadlineAt?: string;
   reminderAt?: string;
+  durationMinutes?: number;
 }
 
 interface AppDataValue {
@@ -209,6 +210,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       startAt: draft.startAt,
       deadlineAt: draft.deadlineAt,
       reminderAt: draft.reminderAt,
+      durationMinutes: draft.durationMinutes,
       status: 'planned',
       createdAt: now,
       updatedAt: now
@@ -239,13 +241,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const setLifeReflection = useCallback((weekId: string, reflection: ReflectionTag, color?: string) => {
     dispatch({ type: 'setLifeReflection', weekId, reflection, color });
   }, []);
-const setWeekWinManual = useCallback((weekId: string, fulfilled: boolean) => {
-  dispatch({ type: 'setWeekWinManual', weekId, fulfilled });
-}, []);
 
-const resetWeekWin = useCallback((weekId: string) => {
-  dispatch({ type: 'resetWeekWin', weekId });
-}, []);
+  const setWeekWinManual = useCallback((weekId: string, fulfilled: boolean) => {
+    dispatch({ type: 'setWeekWinManual', weekId, fulfilled });
+  }, []);
+
+  const resetWeekWin = useCallback((weekId: string) => {
+    dispatch({ type: 'resetWeekWin', weekId });
+  }, []);
+
   const value = useMemo<AppDataValue>(
     () => ({
       state,
@@ -261,7 +265,7 @@ const resetWeekWin = useCallback((weekId: string) => {
         importState,
         setLifeReflection,
         setWeekWinManual,
-      resetWeekWin,
+        resetWeekWin
       }
     }),
     [
@@ -275,7 +279,9 @@ const resetWeekWin = useCallback((weekId: string) => {
       setTaskStatus,
       setPreferences,
       importState,
-      setLifeReflection
+      setLifeReflection,
+      setWeekWinManual,
+      resetWeekWin
     ]
   );
 
