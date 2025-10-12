@@ -33,11 +33,15 @@ export default function SettingsPage() {
     defaultReminderTime: string;
     accentTheme: AccentTheme;
     surfaceTheme: SurfaceTheme;
+    progressiveTasksPerDay: number;
+    progressiveDaysForWeekWin: number;
   }>(() => ({
     reminderLeadMinutes: state.preferences.reminderLeadMinutes,
     defaultReminderTime: state.preferences.defaultReminderTime ?? '',
     accentTheme: state.preferences.accentTheme ?? 'aurora',
-    surfaceTheme: state.preferences.surfaceTheme ?? 'indigo'
+    surfaceTheme: state.preferences.surfaceTheme ?? 'indigo',
+    progressiveTasksPerDay: state.preferences.progressiveTasksPerDay ?? 1,
+    progressiveDaysForWeekWin: state.preferences.progressiveDaysForWeekWin ?? 3
   }));
 
   const accentOptions = [
@@ -136,7 +140,9 @@ export default function SettingsPage() {
       reminderLeadMinutes: preferencesForm.reminderLeadMinutes,
       defaultReminderTime: preferencesForm.defaultReminderTime || undefined,
       accentTheme: preferencesForm.accentTheme,
-      surfaceTheme: preferencesForm.surfaceTheme
+      surfaceTheme: preferencesForm.surfaceTheme,
+      progressiveTasksPerDay: preferencesForm.progressiveTasksPerDay,
+      progressiveDaysForWeekWin: preferencesForm.progressiveDaysForWeekWin
     });
     setStatusMessage('Preferences updated');
     setErrorMessage(null);
@@ -182,7 +188,9 @@ export default function SettingsPage() {
         reminderLeadMinutes: importedState.preferences.reminderLeadMinutes,
         defaultReminderTime: importedState.preferences.defaultReminderTime ?? '',
         accentTheme: importedState.preferences.accentTheme ?? 'aurora',
-        surfaceTheme: importedState.preferences.surfaceTheme ?? 'indigo'
+        surfaceTheme: importedState.preferences.surfaceTheme ?? 'indigo',
+        progressiveTasksPerDay: importedState.preferences.progressiveTasksPerDay ?? 1,
+        progressiveDaysForWeekWin: importedState.preferences.progressiveDaysForWeekWin ?? 3
       });
     } catch (error) {
       console.error(error);
@@ -290,6 +298,38 @@ export default function SettingsPage() {
                 value={preferencesForm.defaultReminderTime}
                 onChange={(event) =>
                   setPreferencesForm((prev) => ({ ...prev, defaultReminderTime: event.target.value }))
+                }
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-slate-300">Progressive tasks per day</span>
+              <input
+                type="number"
+                min={0}
+                max={24}
+                className="w-full rounded-lg bg-slate-900 px-3 py-2"
+                value={preferencesForm.progressiveTasksPerDay}
+                onChange={(event) =>
+                  setPreferencesForm((prev) => ({
+                    ...prev,
+                    progressiveTasksPerDay: Number.parseInt(event.target.value, 10) || 0
+                  }))
+                }
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-slate-300">Progressed days for week win</span>
+              <input
+                type="number"
+                min={0}
+                max={7}
+                className="w-full rounded-lg bg-slate-900 px-3 py-2"
+                value={preferencesForm.progressiveDaysForWeekWin}
+                onChange={(event) =>
+                  setPreferencesForm((prev) => ({
+                    ...prev,
+                    progressiveDaysForWeekWin: Number.parseInt(event.target.value, 10) || 0
+                  }))
                 }
               />
             </label>

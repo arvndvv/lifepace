@@ -98,7 +98,7 @@ function buildMonthSegments(row: WeekSlot[]): MonthSegment[] {
 
 export default function LifeSpanPage() {
   const {
-    state: { profile, lifeReflections },
+    state: { profile, lifeReflections, lifeWins },
     actions: { setLifeReflection }
   } = useAppData();
 
@@ -355,10 +355,12 @@ export default function LifeSpanPage() {
                   const boxShadow = displayColor ? shadowForColor(displayColor) : undefined;
                   const canTag = cell.status === 'past' || cell.status === 'current';
 
+                  const isWin = lifeWins[cell.id]?.fulfilled;
                   const buttonClass = [
                     'rounded-[3px] transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-ring)] focus:ring-offset-2 focus:ring-offset-slate-900',
                     canTag ? 'cursor-pointer hover:scale-110' : '',
-                    hasReflection ? '' : STATUS_CLASS[cell.status]
+                    hasReflection ? '' : STATUS_CLASS[cell.status],
+                    isWin ? 'outline outline-2 outline-amber-400 outline-offset-[1px]' : ''
                   ]
                     .filter(Boolean)
                     .join(' ');
@@ -374,11 +376,12 @@ export default function LifeSpanPage() {
                         background: hasReflection ? displayColor : undefined,
                         boxShadow: hasReflection ? boxShadow : undefined
                       }}
-                      title={
-                        hasReflection && reflectionTag
+                      title={(() => {
+                        const base = hasReflection && reflectionTag
                           ? `${format(cell.start, 'MMM d, yyyy')} • ${REFLECTION_LABELS[reflectionTag]}`
-                          : `${format(cell.start, 'MMM d, yyyy')} • ${cell.status}`
-                      }
+                          : `${format(cell.start, 'MMM d, yyyy')} • ${cell.status}`;
+                        return isWin ? `${base} • Week win` : base;
+                      })()}
                       onClick={() => {
                         if (!canTag) {
                           return;
@@ -499,4 +502,3 @@ export default function LifeSpanPage() {
     </div>
   );
 }
-

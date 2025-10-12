@@ -1,8 +1,9 @@
 import { format, parseISO } from 'date-fns';
 import { useMemo } from 'react';
 import { useAppData } from '../context/AppDataContext';
+import type { TaskStatus } from '../types';
 import { getDayProgress, getTodayISO } from '../utils/date';
-import { formatMinutes, getTaskDurationMinutes, getTotalAssignedMinutesForDate, MINUTES_PER_DAY } from '../utils/tasks';
+import { formatMinutes, getTotalAssignedMinutesForDate, MINUTES_PER_DAY } from '../utils/tasks';
 
 export default function DashboardPage() {
   const {
@@ -31,18 +32,20 @@ export default function DashboardPage() {
   const todayTaskStats = useMemo(() => {
     const completed = todayTasks.filter((task) => task.status === 'completed').length;
     const inProgress = todayTasks.filter((task) => task.status === 'in_progress').length;
+    const progressive = todayTasks.filter((task) => task.progressive ?? true).length;
     const total = todayTasks.length;
     const completedPercent = total === 0 ? 0 : Math.min(100, (completed / total) * 100);
     const inProgressPercent = total === 0 ? 0 : Math.min(100, (inProgress / total) * 100);
-    return { completed, inProgress, total, completedPercent, inProgressPercent };
+    const progressivePercent = total === 0 ? 0 : Math.min(100, (progressive / total) * 100);
+    return { completed, inProgress, progressive, total, completedPercent, inProgressPercent, progressivePercent };
   }, [todayTasks]);
 
   const assignedMinutes = useMemo(
     () => getTotalAssignedMinutesForDate(tasks, today),
     [tasks, today]
   );
-  const cappedAssigned = Math.min(assignedMinutes, MINUTES_PER_DAY);
-  const remainingMinutes = Math.max(0, MINUTES_PER_DAY - cappedAssigned);
+  const taskTimeLeftMinutes = Math.max(0, dayProgress.minutesRemaining - assignedMinutes);
+  const overCapacity = assignedMinutes > dayProgress.minutesRemaining;
 
   if (!profile) {
     return (
@@ -80,12 +83,17 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-            <span>Time assigned: {formatMinutes(assignedMinutes)}</span>
-            <span>Time left: {formatMinutes(remainingMinutes)}</span>
+            <span>Tasks assigned: {formatMinutes(assignedMinutes)}</span>
+            <span>Time left today: {formatMinutes(taskTimeLeftMinutes)}</span>
           </div>
           {assignedMinutes > MINUTES_PER_DAY && (
             <p className="text-xs text-amber-300">
               You have planned more than 24 hours today. Consider trimming tasks.
+            </p>
+          )}
+          {overCapacity && (
+            <p className="text-xs text-rose-300">
+              Planned work exceeds your remaining day — some tasks may need to move.
             </p>
           )}
           <div className="space-y-2 text-xs text-slate-400">
@@ -117,6 +125,20 @@ export default function DashboardPage() {
                 />
               </div>
             </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span>Progressive</span>
+                <span className="font-semibold text-slate-200">
+                  {todayTaskStats.progressive}/{todayTaskStats.total}
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                <div
+                  className="h-2 rounded-full bg-amber-400 transition-all"
+                  style={{ width: `${todayTaskStats.progressivePercent}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -133,39 +155,44 @@ export default function DashboardPage() {
             </li>
           )}
           {todayTasks.map((task) => (
-            <li
-              key={task.id}
-              className="flex items-start justify-between gap-3 rounded-2xl bg-slate-800/70 p-4"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-slate-100">{task.title}</h3>
-                  <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                    {task.status.replace('_', ' ')}
-                  </span>
+            <li key={task.id} className="rounded-2xl bg-slate-800/70 p-4">
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium text-slate-100">{task.title}</h3>
+                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
+                      {task.status.replace('_', ' ')}
+                    </span>
+                    {task.progressive && (
+                      <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
+                        Progressive
+                      </span>
+                    )}
+                  </div>
+                  {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                  <p className="text-xs text-slate-400">
+                    {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
+                    {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
+                    {task.durationMinutes ? ` • Duration ${formatMinutes(task.durationMinutes)}` : ''}
+                    {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
+                  </p>
                 </div>
-                {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
-                <p className="text-xs text-slate-400">
-                  {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'Start time not set'}
-                {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
-                {task.durationMinutes ? ` • Duration ${formatMinutes(task.durationMinutes)}` : ''}
-                {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
-              </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 text-xs">
-                {['planned', 'in_progress', 'completed', 'skipped'].map((status) => (
-                  <button
-                    key={status}
-                    className={`rounded-full px-3 py-1 capitalize transition-colors ${
-                      task.status === status
-                        ? 'bg-[color:var(--accent-600)] text-white'
-                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                    }`}
-                    onClick={() => actions.setTaskStatus(task.id, status as typeof task.status)}
-                  >
-                    {status.replace('_', ' ')}
-                  </button>
-                ))}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      className={`rounded-full px-3 py-1 capitalize transition-colors ${
+                        task.status === status
+                          ? 'bg-[color:var(--accent-600)] text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                      onClick={() => actions.setTaskStatus(task.id, status)}
+                    >
+                      {status.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
               </div>
             </li>
           ))}

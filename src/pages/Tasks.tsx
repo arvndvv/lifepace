@@ -1,11 +1,24 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  getMonth,
+  getYear,
+  isSameMonth,
+  parseISO,
+  startOfMonth,
+  startOfWeek
+} from 'date-fns';
 import { useAppData } from '../context/AppDataContext';
-import { getPeriodRanges, getTodayISO } from '../utils/date';
+import type { Task, TaskStatus } from '../types';
+import { getTodayISO } from '../utils/date';
 import {
   formatMinutes,
   getRemainingMinutesForDay,
-  getTaskDurationMinutes,
   getTotalAssignedMinutesForDate,
   MINUTES_PER_DAY
 } from '../utils/tasks';
@@ -19,9 +32,16 @@ interface TaskDraftForm {
   deadlineTime: string;
   durationHours: number;
   durationMinutes: number;
+  progressive: boolean;
 }
 
 type TaskViewRange = 'today' | 'week' | 'month' | 'all';
+
+interface ValidationSuccess {
+  startAt?: string;
+  deadlineAt?: string;
+  durationMinutes?: number;
+}
 
 const PAGE_SIZE = 10;
 
@@ -66,7 +86,8 @@ function createDraft(defaultStartTime: string): TaskDraftForm {
     startTime: defaultStartTime ?? '',
     deadlineTime: '',
     durationHours: 1,
-    durationMinutes: 0
+    durationMinutes: 0,
+    progressive: true
   };
 }
 
@@ -194,11 +215,25 @@ function TaskScheduleFields({ draft, onChange, allocation }: TaskScheduleFieldsP
   );
 }
 
-interface ValidationSuccess {
-  startAt?: string;
-  deadlineAt?: string;
-  durationMinutes?: number;
+function summarizeTasks(list: Task[]) {
+  return list.reduce(
+    (acc, task) => {
+      acc.total += 1;
+      if (task.status === 'completed') {
+        acc.completed += 1;
+      } else if (task.status === 'in_progress') {
+        acc.inProgress += 1;
+      }
+      if (task.progressive ?? true) {
+        acc.progressive += 1;
+      }
+      return acc;
+    },
+    { total: 0, completed: 0, inProgress: 0, progressive: 0 }
+  );
 }
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function TasksPage() {
   const {
@@ -207,6 +242,7 @@ export default function TasksPage() {
   } = useAppData();
 
   const defaultStartTime = preferences.defaultReminderTime ?? '';
+  const today = getTodayISO();
 
   const [draft, setDraft] = useState<TaskDraftForm>(() => createDraft(defaultStartTime));
   const [formError, setFormError] = useState<string | null>(null);
@@ -219,8 +255,9 @@ export default function TasksPage() {
   const [rangeFilter, setRangeFilter] = useState<TaskViewRange>('today');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
-
-  const today = getTodayISO();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [weekCursor, setWeekCursor] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
 
   useEffect(() => {
     setDraft((prev) => ({
@@ -231,38 +268,25 @@ export default function TasksPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [rangeFilter, searchTerm]);
+  }, [rangeFilter, searchTerm, selectedDate]);
 
-  const ranges = useMemo(() => getPeriodRanges(new Date()), []);
+  useEffect(() => {
+    if (rangeFilter === 'week') {
+      setWeekCursor(startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 }));
+    } else if (rangeFilter === 'month') {
+      setMonthCursor(startOfMonth(parseISO(selectedDate)));
+    }
+  }, [rangeFilter, selectedDate]);
 
-  const filteredTasks = useMemo(() => {
+  const normalizedTasks = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
     return tasks
       .filter((task) => {
-        if (!task.scheduledFor) {
-          return false;
-        }
-        if (rangeFilter === 'today') {
-          return task.scheduledFor === today;
-        }
-        if (rangeFilter === 'week') {
-          const date = parseISO(task.scheduledFor);
-          return date >= ranges.week.start && date < ranges.week.end;
-        }
-        if (rangeFilter === 'month') {
-          const date = parseISO(task.scheduledFor);
-          return date >= ranges.month.start && date < ranges.month.end;
-        }
-        return true;
-      })
-      .filter((task) => {
-        if (!searchTerm.trim()) {
+        if (!query) {
           return true;
         }
-        const query = searchTerm.trim().toLowerCase();
-        return (
-          task.title.toLowerCase().includes(query) ||
-          (task.description ?? '').toLowerCase().includes(query)
-        );
+        const haystack = `${task.title} ${task.description ?? ''}`.toLowerCase();
+        return haystack.includes(query);
       })
       .sort((a, b) => {
         const dateCompare = a.scheduledFor.localeCompare(b.scheduledFor);
@@ -273,19 +297,129 @@ export default function TasksPage() {
         const bStart = b.startAt ?? '';
         return aStart.localeCompare(bStart);
       });
-  }, [tasks, rangeFilter, searchTerm, today, ranges]);
+  }, [tasks, searchTerm]);
 
-  const visibleTasks = useMemo(() => filteredTasks.slice(0, page * PAGE_SIZE), [filteredTasks, page]);
-
-  const byDate = useMemo(() => {
-    const grouped = new Map<string, typeof visibleTasks>();
-    visibleTasks.forEach((task) => {
-      const list = grouped.get(task.scheduledFor) ?? [];
-      list.push(task);
-      grouped.set(task.scheduledFor, list);
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    normalizedTasks.forEach((task) => {
+      const existing = map.get(task.scheduledFor);
+      if (existing) {
+        existing.push(task);
+      } else {
+        map.set(task.scheduledFor, [task]);
+      }
     });
-    return Array.from(grouped.entries());
-  }, [visibleTasks]);
+    return map;
+  }, [normalizedTasks]);
+
+  const selectedDayTasks = useMemo(() => tasksByDate.get(selectedDate) ?? [], [tasksByDate, selectedDate]);
+
+  const selectedDaySummary = useMemo(() => summarizeTasks(selectedDayTasks), [selectedDayTasks]);
+  const selectedDayAllocation = useMemo(
+    () => getRemainingMinutesForDay(tasks, selectedDate),
+    [tasks, selectedDate]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(selectedDayTasks.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (page - 1) * PAGE_SIZE;
+    return selectedDayTasks.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [selectedDayTasks, page]);
+
+  const selectedDateLabel = useMemo(() => {
+    try {
+      return format(parseISO(selectedDate), 'EEEE, MMM d');
+    } catch (error) {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
+  const weekDays = useMemo(() => {
+    const start = weekCursor;
+    return eachDayOfInterval({ start, end: addDays(start, 6) });
+  }, [weekCursor]);
+
+  const weekSummaries = useMemo(
+    () =>
+      weekDays.map((date) => {
+        const iso = format(date, 'yyyy-MM-dd');
+        const list = tasksByDate.get(iso) ?? [];
+        return { date, iso, summary: summarizeTasks(list) };
+      }),
+    [weekDays, tasksByDate]
+  );
+
+  const monthGrid = useMemo(() => {
+    const start = startOfWeek(startOfMonth(monthCursor), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(monthCursor), { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start, end });
+    const rows: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      rows.push(days.slice(i, i + 7));
+    }
+    return rows;
+  }, [monthCursor]);
+
+  const yearsSummary = useMemo(() => {
+    const yearMap = new Map<number, Map<number, Task[]>>();
+    normalizedTasks.forEach((task) => {
+      const date = parseISO(task.scheduledFor);
+      if (Number.isNaN(date.getTime())) {
+        return;
+      }
+      const year = getYear(date);
+      const month = getMonth(date);
+      const monthMap = yearMap.get(year) ?? new Map<number, Task[]>();
+      const bucket = monthMap.get(month);
+      if (bucket) {
+        bucket.push(task);
+      } else {
+        monthMap.set(month, [task]);
+      }
+      if (!yearMap.has(year)) {
+        yearMap.set(year, monthMap);
+      }
+    });
+
+    return Array.from(yearMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([year, monthMap]) => ({
+        year,
+        months: Array.from({ length: 12 }, (_, month) => ({
+          month,
+          summary: summarizeTasks(monthMap.get(month) ?? [])
+        }))
+      }));
+  }, [normalizedTasks]);
+
+  const handleViewChange = (next: TaskViewRange) => {
+    setRangeFilter(next);
+    if (next === 'today') {
+      setSelectedDate((prev) => prev || today);
+    } else if (next === 'week') {
+      setWeekCursor(startOfWeek(parseISO(selectedDate), { weekStartsOn: 1 }));
+    } else if (next === 'month') {
+      setMonthCursor(startOfMonth(parseISO(selectedDate)));
+    }
+  };
+
+  const goToDate = (iso: string) => {
+    setSelectedDate(iso);
+    setRangeFilter('today');
+  };
+
+  const moveWeek = (offset: number) => {
+    setWeekCursor((prev) => addDays(prev, offset * 7));
+  };
+
+  const moveMonth = (offset: number) => {
+    setMonthCursor((prev) => addMonths(prev, offset));
+  };
 
   const resetDraft = () => setDraft(createDraft(defaultStartTime));
 
@@ -306,7 +440,10 @@ export default function TasksPage() {
       const existingAssigned = getTotalAssignedMinutesForDate(tasks, scheduledFor, excludeId);
       if (existingAssigned + totalMinutes > MINUTES_PER_DAY) {
         const remaining = Math.max(0, MINUTES_PER_DAY - existingAssigned);
-        const suffix = remaining === 0 ? 'This day is already fully allocated.' : `Only ${formatMinutes(remaining)} left on this day.`;
+        const suffix =
+          remaining === 0
+            ? 'This day is already fully allocated.'
+            : `Only ${formatMinutes(remaining)} left on this day.`;
         return { error: suffix };
       }
       return { durationMinutes: totalMinutes };
@@ -341,7 +478,10 @@ export default function TasksPage() {
       const candidateMinutes = Math.floor((deadlineMs - startMs) / 60000);
       if (existingAssigned + candidateMinutes > MINUTES_PER_DAY) {
         const remaining = Math.max(0, MINUTES_PER_DAY - existingAssigned);
-        const suffix = remaining === 0 ? 'This day is already fully allocated.' : `Only ${formatMinutes(remaining)} left on this day.`;
+        const suffix =
+          remaining === 0
+            ? 'This day is already fully allocated.'
+            : `Only ${formatMinutes(remaining)} left on this day.`;
         return { error: suffix };
       }
     }
@@ -411,7 +551,8 @@ export default function TasksPage() {
       startAt,
       deadlineAt,
       reminderAt,
-      durationMinutes: validation.durationMinutes
+      durationMinutes: validation.durationMinutes,
+      progressive: draft.progressive
     });
 
     resetDraft();
@@ -439,7 +580,8 @@ export default function TasksPage() {
         ? format(parseISO(task.deadlineAt), 'HH:mm')
         : '',
       durationHours: isDuration ? Math.floor(totalMinutes / 60) : 1,
-      durationMinutes: isDuration ? totalMinutes % 60 : 0
+      durationMinutes: isDuration ? totalMinutes % 60 : 0,
+      progressive: task.progressive ?? true
     });
   };
 
@@ -472,19 +614,21 @@ export default function TasksPage() {
       startAt,
       deadlineAt,
       reminderAt,
-      durationMinutes: validation.durationMinutes
+      durationMinutes: validation.durationMinutes,
+      progressive: editDraft.progressive
     });
     setEditingTaskId(null);
     setEditDraft(null);
   };
 
   const allocationForDraft = getRemainingMinutesForDay(tasks, draft.scheduledFor);
-  const allocationForEdit = editingTaskId && editDraft
-    ? getRemainingMinutesForDay(tasks, editDraft.scheduledFor, editingTaskId)
-    : null;
+  const allocationForEdit =
+    editingTaskId && editDraft
+      ? getRemainingMinutesForDay(tasks, editDraft.scheduledFor, editingTaskId)
+      : null;
 
-  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
-  const hasMore = page < totalPages;
+  const hasPrevPage = page > 1;
+  const hasNextPage = page < totalPages;
 
   return (
     <div className="space-y-6">
@@ -499,7 +643,8 @@ export default function TasksPage() {
                   ? 'bg-[color:var(--accent-600)] text-white'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
-              onClick={() => setRangeFilter(range)}
+              onClick={() => handleViewChange(range)}
+              aria-pressed={rangeFilter === range}
             >
               {range === 'today' && 'Today'}
               {range === 'week' && 'This week'}
@@ -526,25 +671,57 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {byDate.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-          No tasks match your filters yet.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {byDate.map(([date, items]) => (
-            <section key={date} className="space-y-3">
-              <header className="flex items-center justify-between text-sm text-slate-400">
-                <span className="font-semibold text-slate-200">{format(parseISO(date), 'EEEE, MMM d')}</span>
-                <span>
-                  {items.length} task{items.length === 1 ? '' : 's'} • {formatMinutes(
-                    items.reduce((total, task) => total + getTaskDurationMinutes(task), 0)
-                  )}{' '}
-                  planned
-                </span>
-              </header>
+      {rangeFilter === 'today' && (
+        <section className="space-y-4">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
+              <p className="text-xs text-slate-400">
+                {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Time assigned{' '}
+                {formatMinutes(selectedDayAllocation.assigned)} • Time free {formatMinutes(selectedDayAllocation.remaining)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => {
+                  setSelectedDate(today);
+                  setRangeFilter('today');
+                }}
+              >
+                Jump to today
+              </button>
+            </div>
+          </header>
+
+          <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Planned</p>
+              <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">In progress</p>
+              <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Completed</p>
+              <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Progressive</p>
+              <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
+            </div>
+          </div>
+
+          {selectedDayTasks.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+              No tasks planned for this day. Add one above.
+            </p>
+          ) : (
+            <>
               <ul className="space-y-2">
-                {items.map((task) => {
+                {paginatedTasks.map((task) => {
                   const isEditing = editingTaskId === task.id && editDraft;
                   if (isEditing && editDraft) {
                     return (
@@ -553,7 +730,9 @@ export default function TasksPage() {
                           <input
                             className="w-full rounded-lg bg-slate-900 px-3 py-2"
                             value={editDraft.title}
-                            onChange={(event) => setEditDraft((prev) => prev && { ...prev, title: event.target.value })}
+                            onChange={(event) =>
+                              setEditDraft((prev) => prev && { ...prev, title: event.target.value })
+                            }
                           />
                           <textarea
                             className="w-full rounded-lg bg-slate-900 px-3 py-2"
@@ -570,6 +749,25 @@ export default function TasksPage() {
                               setEditDraft((prev) => (prev ? { ...prev, ...updates } : prev))
                             }
                           />
+                          <label className="flex items-start gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={editDraft.progressive}
+                              onChange={(event) =>
+                                setEditDraft((prev) => prev && {
+                                  ...prev,
+                                  progressive: event.target.checked
+                                })
+                              }
+                              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900"
+                            />
+                            <span>
+                              Counts toward daily progress{' '}
+                              <span className="text-slate-500">
+                                (need at least {preferences.progressiveTasksPerDay} per day)
+                              </span>
+                            </span>
+                          </label>
                           {editError && <p className="text-sm text-rose-300">{editError}</p>}
                           <div className="flex justify-end gap-2">
                             <button
@@ -578,6 +776,7 @@ export default function TasksPage() {
                               onClick={() => {
                                 setEditingTaskId(null);
                                 setEditDraft(null);
+                                setEditError(null);
                               }}
                             >
                               Cancel
@@ -596,58 +795,283 @@ export default function TasksPage() {
 
                   return (
                     <li key={task.id} className="rounded-2xl bg-slate-800/70 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-slate-100">{task.title}</h3>
-                            <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                              {task.status.replace('_', ' ')}
-                            </span>
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-medium text-slate-100">{task.title}</h3>
+                              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
+                                {task.status.replace('_', ' ')}
+                              </span>
+                              {task.progressive && (
+                                <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
+                                  Progressive
+                                </span>
+                              )}
+                            </div>
+                            {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                            <p className="text-xs text-slate-400">
+                              {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
+                              {task.deadlineAt ? ` • Ends ${timeLabel(task.deadlineAt)}` : ''}
+                              {task.durationMinutes ? ` • Duration ${formatMinutes(task.durationMinutes)}` : ''}
+                              {task.reminderAt ? ` • Reminder ${timeLabel(task.reminderAt)}` : ''}
+                            </p>
                           </div>
-                          {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
-                          <p className="text-xs text-slate-400">
-                            {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
-                            {task.deadlineAt ? ` • Ends ${timeLabel(task.deadlineAt)}` : ''}
-                            {task.durationMinutes
-                              ? ` • Duration ${formatMinutes(task.durationMinutes)}`
-                              : ''}
-                            {task.reminderAt ? ` • Reminder ${timeLabel(task.reminderAt)}` : ''}
-                          </p>
+                          <div className="flex gap-2 text-xs">
+                            <button
+                              className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
+                              onClick={() => startEdit(task.id)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
+                              onClick={() => actions.deleteTask(task.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-1 text-xs">
-                          <button
-                            className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
-                            onClick={() => startEdit(task.id)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
-                            onClick={() => actions.deleteTask(task.id)}
-                          >
-                            Delete
-                          </button>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              className={`rounded-full px-3 py-1 capitalize transition-colors ${
+                                task.status === status
+                                  ? 'bg-[color:var(--accent-600)] text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                              onClick={() => actions.setTaskStatus(task.id, status)}
+                            >
+                              {status.replace('_', ' ')}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </li>
                   );
                 })}
               </ul>
-            </section>
-          ))}
-        </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={!hasPrevPage}
+                  >
+                    Previous
+                  </button>
+                  <span>
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
+                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={!hasNextPage}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
       )}
 
-      {hasMore && (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setPage((prev) => prev + 1)}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700"
-          >
-            Load more
-          </button>
-        </div>
+      {rangeFilter === 'week' && (
+        <section className="space-y-4">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200">Week of {format(weekCursor, 'MMM d')}</h2>
+              <p className="text-xs text-slate-400">Select a day to jump into the detailed view.</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => moveWeek(-1)}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => {
+                  setWeekCursor(startOfWeek(new Date(), { weekStartsOn: 1 }));
+                  setSelectedDate(today);
+                }}
+              >
+                This week
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => moveWeek(1)}
+              >
+                Next
+              </button>
+            </div>
+          </header>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            {weekSummaries.map(({ date, iso, summary }) => {
+              const isSelected = iso === selectedDate;
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => goToDate(iso)}
+                  className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
+                    isSelected
+                      ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
+                      : 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span className="font-semibold text-slate-200">{format(date, 'EEE')}</span>
+                    <span>{format(date, 'MMM d')}</span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-[11px] text-slate-300">
+                    <p>Total {summary.total}</p>
+                    <p className="text-emerald-300">Completed {summary.completed}</p>
+                    <p className="text-sky-300">In progress {summary.inProgress}</p>
+                    <p className="text-amber-300">Progressive {summary.progressive}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {rangeFilter === 'month' && (
+        <section className="space-y-4">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200">{format(monthCursor, 'MMMM yyyy')}</h2>
+              <p className="text-xs text-slate-400">Click a day to open it in the Today view.</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => moveMonth(-1)}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => {
+                  const now = new Date();
+                  setMonthCursor(startOfMonth(now));
+                  setSelectedDate(format(now, 'yyyy-MM-dd'));
+                }}
+              >
+                This month
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => moveMonth(1)}
+              >
+                Next
+              </button>
+            </div>
+          </header>
+          <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+            {WEEKDAY_LABELS.map((label) => (
+              <span key={label} className="text-center">
+                {label}
+              </span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2 text-xs">
+            {monthGrid.map((week, weekIndex) =>
+              week.map((date, dayIndex) => {
+                const iso = format(date, 'yyyy-MM-dd');
+                const summary = summarizeTasks(tasksByDate.get(iso) ?? []);
+                const inMonth = isSameMonth(date, monthCursor);
+                const isSelected = iso === selectedDate;
+                return (
+                  <button
+                    key={`${weekIndex}-${dayIndex}`}
+                    type="button"
+                    onClick={() => goToDate(iso)}
+                    className={`rounded-xl border px-2 py-2 text-left transition-colors ${
+                      isSelected
+                        ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
+                        : inMonth
+                        ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
+                        : 'border-slate-900 bg-slate-900/30 text-slate-600'
+                    }`}
+                  >
+                    <span className="block text-xs font-semibold text-slate-200">{format(date, 'd')}</span>
+                    {summary.total > 0 && (
+                      <div className="mt-1 space-y-0.5 text-[10px] text-slate-300">
+                        <p className="text-emerald-300">C {summary.completed}</p>
+                        <p className="text-sky-300">P {summary.inProgress}</p>
+                        <p className="text-amber-300">G {summary.progressive}</p>
+                      </div>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </section>
+      )}
+
+      {rangeFilter === 'all' && (
+        <section className="space-y-6">
+          {yearsSummary.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+              No tasks recorded yet. Start planning to see yearly stats.
+            </p>
+          ) : (
+            yearsSummary.map(({ year, months }) => (
+              <div key={year} className="space-y-3">
+                <header className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold text-slate-200">{year}</h2>
+                  <span className="text-xs text-slate-400">Tap a month to dig deeper.</span>
+                </header>
+                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {months.map(({ month, summary }) => {
+                    const monthDate = new Date(year, month, 1);
+                    const iso = format(monthDate, 'yyyy-MM-dd');
+                    const hasTasks = summary.total > 0;
+                    return (
+                      <button
+                        key={`${year}-${month}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(iso);
+                          setMonthCursor(startOfMonth(monthDate));
+                          handleViewChange('month');
+                        }}
+                        className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
+                          hasTasks
+                            ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
+                            : 'border-slate-900 bg-slate-900/30 text-slate-600 hover:border-slate-800'
+                        }`}
+                      >
+                        <span className="text-sm font-semibold text-slate-200">{format(monthDate, 'MMM')}</span>
+                        <div className="mt-2 space-y-1 text-[11px] text-slate-300">
+                          <p>Total {summary.total}</p>
+                          <p className="text-emerald-300">Completed {summary.completed}</p>
+                          <p className="text-sky-300">In progress {summary.inProgress}</p>
+                          <p className="text-amber-300">Progressive {summary.progressive}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </section>
       )}
 
       {isModalOpen && (
@@ -687,6 +1111,20 @@ export default function TasksPage() {
                 allocation={allocationForDraft}
                 onChange={(updates) => setDraft((prev) => ({ ...prev, ...updates }))}
               />
+              <label className="flex items-start gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={draft.progressive}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, progressive: event.target.checked }))}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900"
+                />
+                <span>
+                  Counts toward daily progress{' '}
+                  <span className="text-slate-500">
+                    (need at least {preferences.progressiveTasksPerDay} per day)
+                  </span>
+                </span>
+              </label>
               {formError && <p className="text-sm text-rose-300">{formError}</p>}
               <p className="text-xs text-slate-400">
                 Reminders fire {preferences.reminderLeadMinutes} minutes before start when notifications are enabled.

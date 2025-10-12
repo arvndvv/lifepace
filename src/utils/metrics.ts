@@ -21,6 +21,8 @@ export function getWeekStartDate(weekId: string, dateOfBirth: string): Date {
 interface DayAccumulator {
   total: number;
   completed: number;
+  inProgress: number;
+  progressive: number;
 }
 
 export function computeDaySummaries(
@@ -35,10 +37,16 @@ export function computeDaySummaries(
     if (!date) {
       return;
     }
-    const bucket = byDate.get(date) ?? { total: 0, completed: 0 };
+    const bucket = byDate.get(date) ?? { total: 0, completed: 0, inProgress: 0, progressive: 0 };
     bucket.total += 1;
     if (task.status === 'completed') {
       bucket.completed += 1;
+    }
+    if (task.status === 'in_progress') {
+      bucket.inProgress += 1;
+    }
+    if (task.progressive ?? true) {
+      bucket.progressive += 1;
     }
     byDate.set(date, bucket);
   });
@@ -47,19 +55,24 @@ export function computeDaySummaries(
     Math.max(preferences.dayFulfillmentThreshold ?? 40, 0),
     100
   );
+  const progressiveThreshold = preferences.progressiveTasksPerDay ?? 1;
 
   const summaries: Record<string, DaySummary> = {};
 
   byDate.forEach((bucket, date) => {
     const completionRate = bucket.total === 0 ? 0 : bucket.completed / bucket.total;
     const fulfilled = bucket.total > 0 && completionRate * 100 >= threshold;
+    const progressed = progressiveThreshold <= 0 || bucket.progressive >= progressiveThreshold;
     summaries[date] = {
       date,
       completionRate,
       totalTasks: bucket.total,
       completedTasks: bucket.completed,
+      inProgressTasks: bucket.inProgress,
+      progressiveTasks: bucket.progressive,
+      progressed,
       weekId: getWeekIdForDate(date, profile.dateOfBirth),
-      fulfilled
+      fulfilled: progressed
     };
   });
 
@@ -72,7 +85,7 @@ export function deriveAutoWeekWins(
 ): Set<string> {
   const counts = new Map<string, number>();
   Object.values(daySummaries).forEach((summary) => {
-    if (!summary.fulfilled) {
+    if (!summary.progressed) {
       return;
     }
     counts.set(summary.weekId, (counts.get(summary.weekId) ?? 0) + 1);

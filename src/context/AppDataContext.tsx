@@ -21,6 +21,7 @@ interface TaskDraft {
   deadlineAt?: string;
   reminderAt?: string;
   durationMinutes?: number;
+  progressive?: boolean;
 }
 
 interface AppDataValue {
@@ -63,7 +64,9 @@ const defaultState: AppState = {
     accentTheme: 'aurora',
     surfaceTheme: 'indigo',
     dayFulfillmentThreshold: 40,
-    weekFulfillmentTarget: 3
+    weekFulfillmentTarget: 3,
+    progressiveTasksPerDay: 1,
+    progressiveDaysForWeekWin: 3
   },
   lifeReflections: {},
   lifeWins: {},
@@ -74,13 +77,17 @@ function mergePreferences(preferences?: Preferences): Preferences {
   const {
     accentTheme = defaultState.preferences.accentTheme,
     surfaceTheme = defaultState.preferences.surfaceTheme,
+    progressiveTasksPerDay = defaultState.preferences.progressiveTasksPerDay,
+    progressiveDaysForWeekWin = defaultState.preferences.progressiveDaysForWeekWin,
     ...rest
   } = preferences ?? {};
   return {
     ...defaultState.preferences,
     ...rest,
     accentTheme,
-    surfaceTheme
+    surfaceTheme,
+    progressiveTasksPerDay,
+    progressiveDaysForWeekWin
   };
 }
 
@@ -211,6 +218,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deadlineAt: draft.deadlineAt,
       reminderAt: draft.reminderAt,
       durationMinutes: draft.durationMinutes,
+      progressive: draft.progressive ?? true,
       status: 'planned',
       createdAt: now,
       updatedAt: now
@@ -250,9 +258,37 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'resetWeekWin', weekId });
   }, []);
 
+  const derivedDaySummaries = useMemo(() => {
+    if (!state.profile) {
+      return {};
+    }
+    return computeDaySummaries(state.tasks, state.preferences, state.profile);
+  }, [state.tasks, state.preferences, state.profile]);
+
+  const autoWeekWins = useMemo(() => {
+    return deriveAutoWeekWins(derivedDaySummaries, state.preferences.progressiveDaysForWeekWin ?? 3);
+  }, [derivedDaySummaries, state.preferences.progressiveDaysForWeekWin]);
+
+  const combinedLifeWins = useMemo(() => {
+    const manual = state.lifeWins ?? {};
+    const merged: Record<string, WeekWinEntry> = { ...manual };
+    autoWeekWins.forEach((weekId) => {
+      const existing = merged[weekId];
+      if (existing && existing.status === 'manual') {
+        return;
+      }
+      merged[weekId] = { status: 'auto', fulfilled: true };
+    });
+    return merged;
+  }, [state.lifeWins, autoWeekWins]);
+
   const value = useMemo<AppDataValue>(
     () => ({
-      state,
+      state: {
+        ...state,
+        daySummaries: derivedDaySummaries,
+        lifeWins: combinedLifeWins
+      },
       loading,
       actions: {
         setProfile,
@@ -270,6 +306,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       state,
+      derivedDaySummaries,
+      combinedLifeWins,
       loading,
       setProfile,
       updateProfile,

@@ -24,7 +24,7 @@ const taskStatusSchema = z.union([
   z.literal('skipped')
 ]);
 
-const taskSchema: z.ZodType<Task> = z.object({
+const taskSchema: z.ZodType<Task, z.ZodTypeDef, Omit<Task, 'progressive'> & { progressive?: boolean }> = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().optional(),
@@ -33,6 +33,7 @@ const taskSchema: z.ZodType<Task> = z.object({
   deadlineAt: z.string().optional(),
   reminderAt: z.string().optional(),
   durationMinutes: z.number().nonnegative().optional(),
+  progressive: z.boolean().default(true),
   status: taskStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string()
@@ -68,7 +69,9 @@ const preferencesSchema = z.object({
   accentTheme: accentThemeSchema.default('aurora'),
   surfaceTheme: surfaceThemeSchema.default('indigo'),
   dayFulfillmentThreshold: z.number().min(10).max(100).default(40),
-  weekFulfillmentTarget: z.number().min(1).max(7).default(3)
+  weekFulfillmentTarget: z.number().min(1).max(7).default(3),
+  progressiveTasksPerDay: z.number().min(0).max(24).default(1),
+  progressiveDaysForWeekWin: z.number().min(0).max(7).default(3)
 });
 
 const reflectionTagSchema = z.union([
@@ -97,11 +100,14 @@ const rawLifeWinsSchema = z
   .record(z.union([weekWinEntrySchema, z.boolean()]))
   .default({});
 
-const daySummarySchema: z.ZodType<DaySummary> = z.object({
+const daySummarySchema: z.ZodType<DaySummary, z.ZodTypeDef, Partial<DaySummary>> = z.object({
   date: z.string(),
   completionRate: z.number(),
   totalTasks: z.number(),
   completedTasks: z.number(),
+  inProgressTasks: z.number().default(0),
+  progressiveTasks: z.number().default(0),
+  progressed: z.boolean().default(false),
   weekId: z.string(),
   fulfilled: z.boolean()
 });
@@ -188,7 +194,9 @@ function normalizePreferences(preferences?: Preferences): Preferences {
     dayFulfillmentThreshold = 40,
     weekFulfillmentTarget = 3,
     reminderLeadMinutes = 15,
-    defaultReminderTime
+    defaultReminderTime,
+    progressiveTasksPerDay = 1,
+    progressiveDaysForWeekWin = 3
   } = preferences ?? {};
   return {
     reminderLeadMinutes,
@@ -196,7 +204,9 @@ function normalizePreferences(preferences?: Preferences): Preferences {
     accentTheme,
     surfaceTheme,
     dayFulfillmentThreshold,
-    weekFulfillmentTarget
+    weekFulfillmentTarget,
+    progressiveTasksPerDay,
+    progressiveDaysForWeekWin
   };
 }
 

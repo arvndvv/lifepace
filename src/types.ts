@@ -12,6 +12,7 @@ export interface Task {
   deadlineAt?: string; // ISO datetime for optional deadline
   reminderAt?: string; // ISO datetime for reminders
   durationMinutes?: number; // Total minutes allocated when using duration-based planning
+  progressive: boolean; // Marks this task as contributing towards day progress
   status: TaskStatus;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +37,8 @@ export interface Preferences {
   surfaceTheme: SurfaceTheme;
   dayFulfillmentThreshold: number; // percentage 10-100
   weekFulfillmentTarget: number; // days 1-7
+  progressiveTasksPerDay: number; // min progressive tasks to mark a day progressed
+  progressiveDaysForWeekWin: number; // progressed days needed for automatic week win
 }
 
 export interface ReflectionEntry {
@@ -53,6 +56,9 @@ export interface DaySummary {
   completionRate: number;
   totalTasks: number;
   completedTasks: number;
+  inProgressTasks: number;
+  progressiveTasks: number;
+  progressed: boolean;
   weekId: string;
   fulfilled: boolean;
 }
