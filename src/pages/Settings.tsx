@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import type { AccentTheme, SurfaceTheme } from '../types';
 import { useAppData } from '../context/AppDataContext';
 import { useNotifications } from '../hooks/useNotifications';
@@ -35,13 +35,15 @@ export default function SettingsPage() {
     surfaceTheme: SurfaceTheme;
     progressiveTasksPerDay: number;
     progressiveDaysForWeekWin: number;
+    showLifeCalendar: boolean;
   }>(() => ({
     reminderLeadMinutes: state.preferences.reminderLeadMinutes,
     defaultReminderTime: state.preferences.defaultReminderTime ?? '',
     accentTheme: state.preferences.accentTheme ?? 'aurora',
     surfaceTheme: state.preferences.surfaceTheme ?? 'indigo',
     progressiveTasksPerDay: state.preferences.progressiveTasksPerDay ?? 1,
-    progressiveDaysForWeekWin: state.preferences.progressiveDaysForWeekWin ?? 3
+    progressiveDaysForWeekWin: state.preferences.progressiveDaysForWeekWin ?? 3,
+    showLifeCalendar: state.preferences.showLifeCalendar ?? true
   }));
 
   const accentOptions = [
@@ -122,6 +124,18 @@ export default function SettingsPage() {
 
   const exportPayload = useMemo(() => createExportPayload(state), [state]);
 
+  useEffect(() => {
+    setPreferencesForm({
+      reminderLeadMinutes: state.preferences.reminderLeadMinutes,
+      defaultReminderTime: state.preferences.defaultReminderTime ?? '',
+      accentTheme: state.preferences.accentTheme ?? 'aurora',
+      surfaceTheme: state.preferences.surfaceTheme ?? 'indigo',
+      progressiveTasksPerDay: state.preferences.progressiveTasksPerDay ?? 1,
+      progressiveDaysForWeekWin: state.preferences.progressiveDaysForWeekWin ?? 3,
+      showLifeCalendar: state.preferences.showLifeCalendar ?? true
+    });
+  }, [state.preferences]);
+
   if (!profile || !form) {
     return <p className="text-sm text-slate-400">Complete onboarding to access settings.</p>;
   }
@@ -142,7 +156,8 @@ export default function SettingsPage() {
       accentTheme: preferencesForm.accentTheme,
       surfaceTheme: preferencesForm.surfaceTheme,
       progressiveTasksPerDay: preferencesForm.progressiveTasksPerDay,
-      progressiveDaysForWeekWin: preferencesForm.progressiveDaysForWeekWin
+      progressiveDaysForWeekWin: preferencesForm.progressiveDaysForWeekWin,
+      showLifeCalendar: preferencesForm.showLifeCalendar
     });
     setStatusMessage('Preferences updated');
     setErrorMessage(null);
@@ -190,7 +205,8 @@ export default function SettingsPage() {
         accentTheme: importedState.preferences.accentTheme ?? 'aurora',
         surfaceTheme: importedState.preferences.surfaceTheme ?? 'indigo',
         progressiveTasksPerDay: importedState.preferences.progressiveTasksPerDay ?? 1,
-        progressiveDaysForWeekWin: importedState.preferences.progressiveDaysForWeekWin ?? 3
+        progressiveDaysForWeekWin: importedState.preferences.progressiveDaysForWeekWin ?? 3,
+        showLifeCalendar: importedState.preferences.showLifeCalendar ?? true
       });
     } catch (error) {
       console.error(error);
@@ -346,6 +362,24 @@ export default function SettingsPage() {
                 type="checkbox"
                 checked={form.allowNotifications}
                 onChange={(event) => toggleNotifications(event.target.checked)}
+              />
+              <span className="text-xs text-slate-400">On</span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl bg-slate-900/60 px-3 py-2">
+            <div>
+              <p className="text-sm text-slate-200">Weeks-of-life timeline</p>
+              <p className="text-xs text-slate-400">Toggle the timeline in the Life view.</p>
+            </div>
+            <label className="inline-flex items-center gap-2">
+              <span className="text-xs text-slate-400">Off</span>
+              <input
+                type="checkbox"
+                checked={preferencesForm.showLifeCalendar}
+                onChange={(event) =>
+                  setPreferencesForm((prev) => ({ ...prev, showLifeCalendar: event.target.checked }))
+                }
               />
               <span className="text-xs text-slate-400">On</span>
             </label>

@@ -7,6 +7,10 @@ import type {
   Preferences,
   ReflectionEntry,
   ReflectionTag,
+  Reminder,
+  ReminderSchedule,
+  LifeGoalNode,
+  LifeGoalLink,
   SurfaceTheme,
   Task,
   TaskStatus,
@@ -71,7 +75,8 @@ const preferencesSchema = z.object({
   dayFulfillmentThreshold: z.number().min(10).max(100).default(40),
   weekFulfillmentTarget: z.number().min(1).max(7).default(3),
   progressiveTasksPerDay: z.number().min(0).max(24).default(1),
-  progressiveDaysForWeekWin: z.number().min(0).max(7).default(3)
+  progressiveDaysForWeekWin: z.number().min(0).max(7).default(3),
+  showLifeCalendar: z.boolean().default(true)
 });
 
 const reflectionTagSchema = z.union([
@@ -114,6 +119,50 @@ const daySummarySchema: z.ZodType<DaySummary, z.ZodTypeDef, Partial<DaySummary>>
 
 const daySummariesSchema = z.record(daySummarySchema).default({});
 
+const reminderScheduleSchema: z.ZodType<ReminderSchedule> = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('every_minutes'), intervalMinutes: z.number().min(1).max(24 * 60) }),
+  z.object({ type: z.literal('hourly'), minuteMark: z.number().min(0).max(59) }),
+  z.object({ type: z.literal('daily'), time: z.string() }),
+  z.object({
+    type: z.literal('weekly'),
+    daysOfWeek: z.array(z.number().min(0).max(6)).min(1),
+    time: z.string()
+  }),
+  z.object({
+    type: z.literal('monthly'),
+    daysOfMonth: z.array(z.number().min(1).max(31)).min(1),
+    time: z.string()
+  }),
+  z.object({
+    type: z.literal('yearly'),
+    dates: z.array(z.string()).min(1), // MM-DD strings
+    time: z.string()
+  })
+]);
+
+const reminderSchema: z.ZodType<Reminder> = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  schedule: reminderScheduleSchema,
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+
+const lifeGoalSchema: z.ZodType<LifeGoalNode> = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  x: z.number(),
+  y: z.number()
+});
+
+const lifeGoalLinkSchema: z.ZodType<LifeGoalLink> = z.object({
+  id: z.string(),
+  sourceId: z.string(),
+  targetId: z.string()
+});
+
 const appStateSchema = z.object({
   profile: profileSchema.optional(),
   tasks: z.array(taskSchema),
@@ -121,6 +170,9 @@ const appStateSchema = z.object({
   lifeReflections: rawLifeReflectionSchema,
   lifeWins: rawLifeWinsSchema.optional(),
   daySummaries: daySummariesSchema.optional(),
+  reminders: z.array(reminderSchema).default([]),
+  lifeGoals: z.array(lifeGoalSchema).default([]),
+  lifeGoalLinks: z.array(lifeGoalLinkSchema).default([]),
   lastNotificationSync: z.string().optional()
 });
 
@@ -196,7 +248,8 @@ function normalizePreferences(preferences?: Preferences): Preferences {
     reminderLeadMinutes = 15,
     defaultReminderTime,
     progressiveTasksPerDay = 1,
-    progressiveDaysForWeekWin = 3
+    progressiveDaysForWeekWin = 3,
+    showLifeCalendar = true
   } = preferences ?? {};
   return {
     reminderLeadMinutes,
@@ -206,7 +259,8 @@ function normalizePreferences(preferences?: Preferences): Preferences {
     dayFulfillmentThreshold,
     weekFulfillmentTarget,
     progressiveTasksPerDay,
-    progressiveDaysForWeekWin
+    progressiveDaysForWeekWin,
+    showLifeCalendar
   };
 }
 
@@ -218,6 +272,9 @@ function normalizeAppState(state: z.infer<typeof appStateSchema>): AppState {
     lifeReflections: normalizeLifeReflections(state.lifeReflections),
     lifeWins: normalizeLifeWins(state.lifeWins),
     daySummaries: normalizeDaySummaries(state.daySummaries),
+    reminders: state.reminders ?? [],
+    lifeGoals: state.lifeGoals ?? [],
+    lifeGoalLinks: state.lifeGoalLinks ?? [],
     lastNotificationSync: state.lastNotificationSync
   };
 }

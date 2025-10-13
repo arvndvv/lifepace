@@ -45,7 +45,7 @@ export function computeDaySummaries(
     if (task.status === 'in_progress') {
       bucket.inProgress += 1;
     }
-    if (task.progressive ?? true) {
+    if ((task.progressive ?? true) && task.status === 'completed') {
       bucket.progressive += 1;
     }
     byDate.set(date, bucket);

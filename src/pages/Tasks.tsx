@@ -14,6 +14,7 @@ import {
   startOfWeek
 } from 'date-fns';
 import { useAppData } from '../context/AppDataContext';
+import { Portal } from '../components/Portal';
 import type { Task, TaskStatus } from '../types';
 import { getTodayISO } from '../utils/date';
 import {
@@ -1075,13 +1076,14 @@ export default function TasksPage() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-100">Plan a task</h2>
-              <button
-                type="button"
-                className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
+        <Portal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
+            <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-100">Plan a task</h2>
+                <button
+                  type="button"
+                  className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
                 onClick={() => {
                   setIsModalOpen(false);
                   setFormError(null);
@@ -1090,8 +1092,8 @@ export default function TasksPage() {
               >
                 Close
               </button>
-            </div>
-            <form className="space-y-3" onSubmit={handleSubmit}>
+              </div>
+              <form className="space-y-3" onSubmit={handleSubmit}>
               <input
                 className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
                 placeholder="What will you do?"
@@ -1129,7 +1131,7 @@ export default function TasksPage() {
               <p className="text-xs text-slate-400">
                 Reminders fire {preferences.reminderLeadMinutes} minutes before start when notifications are enabled.
               </p>
-              <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   className="rounded-lg px-3 py-2 text-slate-300"
@@ -1147,10 +1149,11 @@ export default function TasksPage() {
                 >
                   Add task
                 </button>
-              </div>
-            </form>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );

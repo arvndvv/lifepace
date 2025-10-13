@@ -39,6 +39,7 @@ export interface Preferences {
   weekFulfillmentTarget: number; // days 1-7
   progressiveTasksPerDay: number; // min progressive tasks to mark a day progressed
   progressiveDaysForWeekWin: number; // progressed days needed for automatic week win
+  showLifeCalendar: boolean; // toggles weeks-of-life grid visibility
 }
 
 export interface ReflectionEntry {
@@ -49,6 +50,37 @@ export interface ReflectionEntry {
 export interface WeekWinEntry {
   status: 'auto' | 'manual';
   fulfilled: boolean;
+}
+
+export type ReminderSchedule =
+  | { type: 'every_minutes'; intervalMinutes: number }
+  | { type: 'hourly'; minuteMark: number }
+  | { type: 'daily'; time: string }
+  | { type: 'weekly'; daysOfWeek: number[]; time: string }
+  | { type: 'monthly'; daysOfMonth: number[]; time: string }
+  | { type: 'yearly'; dates: string[]; time: string }; // dates formatted MM-DD
+
+export interface Reminder {
+  id: string;
+  title: string;
+  description?: string;
+  schedule: ReminderSchedule;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LifeGoalNode {
+  id: string;
+  title: string;
+  description?: string;
+  x: number;
+  y: number;
+}
+
+export interface LifeGoalLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
 }
 
 export interface DaySummary {
@@ -70,5 +102,8 @@ export interface AppState {
   lifeReflections: Record<string, ReflectionEntry>;
   lifeWins: Record<string, WeekWinEntry>;
   daySummaries: Record<string, DaySummary>;
+  reminders: Reminder[];
+  lifeGoals: LifeGoalNode[];
+  lifeGoalLinks: LifeGoalLink[];
   lastNotificationSync?: string;
 }

@@ -5,6 +5,19 @@ import type { TaskStatus } from '../types';
 import { getDayProgress, getTodayISO } from '../utils/date';
 import { formatMinutes, getTotalAssignedMinutesForDate, MINUTES_PER_DAY } from '../utils/tasks';
 
+function formatHoursMinutes(totalMinutes: number): string {
+  const minutes = Math.max(0, Math.floor(totalMinutes));
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) {
+    return `${remainder}m`;
+  }
+  if (remainder === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${remainder}m`;
+}
+
 export default function DashboardPage() {
   const {
     state: { profile, tasks },
@@ -75,11 +88,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between text-xs text-slate-400">
             <div>
               <p className="font-semibold text-slate-200">{Math.round(dayProgress.percentElapsed)}% done</p>
-              <p>{Math.round(dayProgress.minutesRemaining / 60)} hours left</p>
+              <p>{formatHoursMinutes(dayProgress.minutesRemaining)} left</p>
             </div>
             <div className="text-right">
-              <p className="font-semibold text-slate-200">{Math.round(dayProgress.minutesElapsed / 60)} hours spent</p>
-              <p>Total {(dayProgress.totalMinutes / 60).toFixed(1)} hours</p>
+              <p className="font-semibold text-slate-200">{formatHoursMinutes(dayProgress.minutesElapsed)} spent</p>
+              <p>Total {formatHoursMinutes(dayProgress.totalMinutes)}</p>
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">

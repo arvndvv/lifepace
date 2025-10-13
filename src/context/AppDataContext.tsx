@@ -7,7 +7,10 @@ import type {
   UserProfile,
   ReflectionTag,
   ReflectionEntry,
-  WeekWinEntry
+  WeekWinEntry,
+  Reminder,
+  LifeGoalNode,
+  LifeGoalLink
 } from '../types';
 import { createId } from '../utils/id';
 import { loadAppState, persistAppState } from '../utils/storage';
@@ -22,6 +25,19 @@ interface TaskDraft {
   reminderAt?: string;
   durationMinutes?: number;
   progressive?: boolean;
+}
+
+interface ReminderDraft {
+  title: string;
+  description?: string;
+  schedule: Reminder['schedule'];
+}
+
+interface LifeGoalDraft {
+  id?: string;
+  title: string;
+  description?: string;
+  position?: { x: number; y: number };
 }
 
 interface AppDataValue {
@@ -39,7 +55,16 @@ interface AppDataValue {
     setLifeReflection: (weekId: string, reflection: ReflectionTag, color?: string) => void;
     setWeekWinManual: (weekId: string, fulfilled: boolean) => void;
     resetWeekWin: (weekId: string) => void;
+    addReminder: (draft: ReminderDraft) => void;
+    updateReminder: (id: string, updates: Partial<Omit<Reminder, 'id'>>) => void;
+    deleteReminder: (id: string) => void;
+    addLifeGoal: (draft: LifeGoalDraft) => void;
+    updateLifeGoal: (id: string, updates: Partial<Omit<LifeGoalNode, 'id'>>) => void;
+    deleteLifeGoal: (id: string) => void;
+    connectLifeGoals: (sourceId: string, targetId: string) => void;
+    disconnectLifeGoals: (linkId: string) => void;
   };
+  autoWeekWins: Set<string>;
 }
 
 type AppAction =
@@ -54,7 +79,15 @@ type AppAction =
   | { type: 'importState'; payload: AppState }
   | { type: 'setLifeReflection'; weekId: string; reflection: ReflectionTag; color?: string }
   | { type: 'setWeekWinManual'; weekId: string; fulfilled: boolean }
-  | { type: 'resetWeekWin'; weekId: string };
+  | { type: 'resetWeekWin'; weekId: string }
+  | { type: 'addReminder'; payload: Reminder }
+  | { type: 'updateReminder'; id: string; payload: Partial<Omit<Reminder, 'id'>> }
+  | { type: 'deleteReminder'; id: string }
+  | { type: 'addLifeGoal'; payload: LifeGoalNode }
+  | { type: 'updateLifeGoal'; id: string; payload: Partial<Omit<LifeGoalNode, 'id'>> }
+  | { type: 'deleteLifeGoal'; id: string }
+  | { type: 'connectLifeGoals'; payload: LifeGoalLink }
+  | { type: 'disconnectLifeGoals'; id: string };
 
 const defaultState: AppState = {
   tasks: [],
@@ -66,11 +99,15 @@ const defaultState: AppState = {
     dayFulfillmentThreshold: 40,
     weekFulfillmentTarget: 3,
     progressiveTasksPerDay: 1,
-    progressiveDaysForWeekWin: 3
+    progressiveDaysForWeekWin: 3,
+    showLifeCalendar: true
   },
   lifeReflections: {},
   lifeWins: {},
-  daySummaries: {}
+  daySummaries: {},
+  reminders: [],
+  lifeGoals: [],
+  lifeGoalLinks: []
 };
 
 function mergePreferences(preferences?: Preferences): Preferences {
@@ -79,6 +116,7 @@ function mergePreferences(preferences?: Preferences): Preferences {
     surfaceTheme = defaultState.preferences.surfaceTheme,
     progressiveTasksPerDay = defaultState.preferences.progressiveTasksPerDay,
     progressiveDaysForWeekWin = defaultState.preferences.progressiveDaysForWeekWin,
+    showLifeCalendar = defaultState.preferences.showLifeCalendar,
     ...rest
   } = preferences ?? {};
   return {
@@ -87,7 +125,8 @@ function mergePreferences(preferences?: Preferences): Preferences {
     accentTheme,
     surfaceTheme,
     progressiveTasksPerDay,
-    progressiveDaysForWeekWin
+    progressiveDaysForWeekWin,
+    showLifeCalendar
   };
 }
 
@@ -164,6 +203,59 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
       return { ...state, lifeReflections: next };
     }
+    case 'setWeekWinManual': {
+      const next = { ...state.lifeWins } as Record<string, WeekWinEntry>;
+      next[action.weekId] = {
+        status: 'manual',
+        fulfilled: action.fulfilled
+      };
+      return { ...state, lifeWins: next };
+    }
+    case 'resetWeekWin': {
+      const next = { ...state.lifeWins } as Record<string, WeekWinEntry>;
+      delete next[action.weekId];
+      return { ...state, lifeWins: next };
+    }
+    case 'addReminder':
+      return { ...state, reminders: [...state.reminders, action.payload] };
+    case 'updateReminder':
+      return {
+        ...state,
+        reminders: state.reminders.map((reminder) =>
+          reminder.id === action.id
+            ? { ...reminder, ...action.payload, updatedAt: new Date().toISOString() }
+            : reminder
+        )
+      };
+    case 'deleteReminder':
+      return { ...state, reminders: state.reminders.filter((reminder) => reminder.id !== action.id) };
+    case 'addLifeGoal':
+      return { ...state, lifeGoals: [...state.lifeGoals, action.payload] };
+    case 'updateLifeGoal':
+      return {
+        ...state,
+        lifeGoals: state.lifeGoals.map((goal) =>
+          goal.id === action.id ? { ...goal, ...action.payload } : goal
+        )
+      };
+    case 'deleteLifeGoal':
+      return {
+        ...state,
+        lifeGoals: state.lifeGoals.filter((goal) => goal.id !== action.id),
+        lifeGoalLinks: state.lifeGoalLinks.filter(
+          (link) => link.sourceId !== action.id && link.targetId !== action.id
+        )
+      };
+    case 'connectLifeGoals':
+      return {
+        ...state,
+        lifeGoalLinks: [...state.lifeGoalLinks, action.payload]
+      };
+    case 'disconnectLifeGoals':
+      return {
+        ...state,
+        lifeGoalLinks: state.lifeGoalLinks.filter((link) => link.id !== action.id)
+      };
     default:
       return state;
   }
@@ -258,6 +350,59 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'resetWeekWin', weekId });
   }, []);
 
+  const addReminder = useCallback((draft: ReminderDraft) => {
+    const now = new Date().toISOString();
+    const reminder: Reminder = {
+      id: createId(),
+      title: draft.title,
+      description: draft.description,
+      schedule: draft.schedule,
+      createdAt: now,
+      updatedAt: now
+    };
+    dispatch({ type: 'addReminder', payload: reminder });
+  }, []);
+
+  const updateReminder = useCallback((id: string, updates: Partial<Omit<Reminder, 'id'>>) => {
+    dispatch({ type: 'updateReminder', id, payload: updates });
+  }, []);
+
+  const deleteReminder = useCallback((id: string) => {
+    dispatch({ type: 'deleteReminder', id });
+  }, []);
+
+  const addLifeGoal = useCallback((draft: LifeGoalDraft) => {
+    const goal: LifeGoalNode = {
+      id: draft.id ?? createId(),
+      title: draft.title,
+      description: draft.description,
+      x: draft.position?.x ?? 0,
+      y: draft.position?.y ?? 0
+    };
+    dispatch({ type: 'addLifeGoal', payload: goal });
+  }, []);
+
+  const updateLifeGoal = useCallback((id: string, updates: Partial<Omit<LifeGoalNode, 'id'>>) => {
+    dispatch({ type: 'updateLifeGoal', id, payload: updates });
+  }, []);
+
+  const deleteLifeGoal = useCallback((id: string) => {
+    dispatch({ type: 'deleteLifeGoal', id });
+  }, []);
+
+  const connectLifeGoals = useCallback((sourceId: string, targetId: string) => {
+    const link: LifeGoalLink = {
+      id: createId(),
+      sourceId,
+      targetId
+    };
+    dispatch({ type: 'connectLifeGoals', payload: link });
+  }, []);
+
+  const disconnectLifeGoals = useCallback((linkId: string) => {
+    dispatch({ type: 'disconnectLifeGoals', id: linkId });
+  }, []);
+
   const derivedDaySummaries = useMemo(() => {
     if (!state.profile) {
       return {};
@@ -290,6 +435,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         lifeWins: combinedLifeWins
       },
       loading,
+      autoWeekWins,
       actions: {
         setProfile,
         updateProfile,
@@ -301,13 +447,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         importState,
         setLifeReflection,
         setWeekWinManual,
-        resetWeekWin
+        resetWeekWin,
+        addReminder,
+        updateReminder,
+        deleteReminder,
+        addLifeGoal,
+        updateLifeGoal,
+        deleteLifeGoal,
+        connectLifeGoals,
+        disconnectLifeGoals
       }
     }),
     [
       state,
       derivedDaySummaries,
       combinedLifeWins,
+      autoWeekWins,
       loading,
       setProfile,
       updateProfile,
@@ -319,7 +474,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       importState,
       setLifeReflection,
       setWeekWinManual,
-      resetWeekWin
+      resetWeekWin,
+      addReminder,
+      updateReminder,
+      deleteReminder,
+      addLifeGoal,
+      updateLifeGoal,
+      deleteLifeGoal,
+      connectLifeGoals,
+      disconnectLifeGoals
     ]
   );
 
