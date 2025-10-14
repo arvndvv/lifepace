@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { ReminderTicker } from '../ReminderTicker';
 
 const iconSize = 'h-5 w-5';
 
@@ -109,6 +110,7 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
+        <ReminderTicker />
       </div>
     </div>
   );

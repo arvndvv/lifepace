@@ -242,7 +242,7 @@ export default function LifeSpanPage() {
 
   const rootGoal: LifeGoalNode = {
     id: 'root',
-    title: profile?.name ? `${profile.name}'s North Star` : 'Your North Star',
+    title: profile?.name ? `${profile.name}` : 'You',
     description: undefined,
     x: GOALS_CANVAS.width / 2,
     y: GOALS_CANVAS.height / 2

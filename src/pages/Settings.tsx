@@ -291,7 +291,7 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <label className="space-y-1">
-              <span className="text-slate-300">Reminder lead (minutes)</span>
+              <span className="text-slate-300">Task Reminder lead (minutes)</span>
               <input
                 type="number"
                 min={0}
@@ -307,7 +307,7 @@ export default function SettingsPage() {
               />
             </label>
             <label className="space-y-1">
-              <span className="text-slate-300">Default reminder time</span>
+              <span className="text-slate-300">Default reminder time (Task)</span>
               <input
                 type="time"
                 className="w-full rounded-lg bg-slate-900 px-3 py-2"
