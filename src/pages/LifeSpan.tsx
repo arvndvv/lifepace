@@ -153,6 +153,15 @@ export default function LifeSpanPage() {
     return buildLifeCalendar(profile.dateOfBirth, profile.lifeExpectancyYears);
   }, [profile]);
 
+  const patternOptions: { value: ReminderSchedule['type']; label: string; helper: string }[] = [
+    { value: 'every_minutes', label: 'Every N minutes', helper: 'Run on a custom minute cadence' },
+    { value: 'hourly', label: 'Hourly', helper: 'Ping every hour' },
+    { value: 'daily', label: 'Daily', helper: 'Pick a single time each day' },
+    { value: 'weekly', label: 'Weekly', helper: 'Choose days of the week' },
+    { value: 'monthly', label: 'Monthly', helper: 'Choose days in the month' },
+    { value: 'yearly', label: 'Yearly', helper: 'Celebrate recurring dates' }
+  ];
+
   const rows = useMemo(() => {
     if (calendar.length === 0) {
       return [];
@@ -1030,105 +1039,123 @@ export default function LifeSpanPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Recurring reminders</h2>
-              <p className="text-xs text-slate-400">Create gentle nudges for habits, check-ins, or rituals.</p>
+              <p className="text-xs text-slate-400">Quiet nudges for habits, check-ins, or recurring events.</p>
             </div>
           </div>
 
           <form
-            className="space-y-3 rounded-2xl bg-slate-900/70 p-4"
+            className="space-y-6 rounded-2xl bg-slate-900/70 p-5"
             onSubmit={(event) => {
               event.preventDefault();
               addReminderFromDraft();
             }}
           >
-            <input
-              className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              placeholder="Reminder title"
-              value={reminderDraft.title}
-              onChange={(event) => setReminderDraft((prev) => ({ ...prev, title: event.target.value }))}
-              required
-            />
-            <textarea
-              className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100"
-              placeholder="Optional description"
-              value={reminderDraft.description}
-              onChange={(event) => setReminderDraft((prev) => ({ ...prev, description: event.target.value }))}
-              rows={2}
-            />
-            <div className="grid gap-3 text-sm md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-xs uppercase text-slate-400">Repeat pattern</span>
-                <select
-                  className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                  value={reminderDraft.type}
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1 text-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-400">Title</span>
+                <input
+                  className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
+                  placeholder="Morning stretch"
+                  value={reminderDraft.title}
+                  onChange={(event) => setReminderDraft((prev) => ({ ...prev, title: event.target.value }))}
+                  required
+                />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-400">Description</span>
+                <input
+                  className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-200"
+                  placeholder="Optional note"
+                  value={reminderDraft.description}
+                  onChange={(event) => setReminderDraft((prev) => ({ ...prev, description: event.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-xs uppercase tracking-wide text-slate-400">Repeat pattern</span>
+              <div className="flex flex-wrap gap-2">
+                {patternOptions.map((option) => {
+                  const active = reminderDraft.type === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
+                        active
+                          ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/20 text-[color:var(--accent-100)]'
+                          : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-[color:var(--accent-500)]/50'
+                      }`}
+                      onClick={() =>
+                        setReminderDraft((prev) => ({
+                          ...prev,
+                          type: option.value
+                        }))
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500">
+                {patternOptions.find((option) => option.value === reminderDraft.type)?.helper}
+              </p>
+            </div>
+
+            {reminderDraft.type === 'every_minutes' && (
+              <label className="flex items-end gap-3 text-xs text-slate-400">
+                <span className="flex-1">Interval (minutes)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={24 * 60}
+                  className="w-32 rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
+                  value={reminderDraft.intervalMinutes}
                   onChange={(event) =>
                     setReminderDraft((prev) => ({
                       ...prev,
-                      type: event.target.value as ReminderSchedule['type']
+                      intervalMinutes: Number.parseInt(event.target.value, 10) || 1
                     }))
                   }
-                >
-                  <option value="every_minutes">Every N minutes</option>
-                  <option value="hourly">Every hour</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
+                />
               </label>
-              {reminderDraft.type === 'every_minutes' && (
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Interval (minutes)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={24 * 60}
-                    className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                    value={reminderDraft.intervalMinutes}
-                    onChange={(event) =>
-                      setReminderDraft((prev) => ({
-                        ...prev,
-                        intervalMinutes: Number.parseInt(event.target.value, 10) || 1
-                      }))
-                    }
-                  />
-                </label>
-              )}
-              {reminderDraft.type === 'hourly' && (
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Minute mark</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={59}
-                    className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                    value={reminderDraft.minuteMark}
-                    onChange={(event) =>
-                      setReminderDraft((prev) => ({
-                        ...prev,
-                        minuteMark: Number.parseInt(event.target.value, 10) || 0
-                      }))
-                    }
-                  />
-                </label>
-              )}
-              {['daily', 'weekly', 'monthly', 'yearly'].includes(reminderDraft.type) && (
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Time of day</span>
-                  <input
-                    type="time"
-                    className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                    value={reminderDraft.time}
-                    onChange={(event) =>
-                      setReminderDraft((prev) => ({ ...prev, time: event.target.value }))
-                    }
-                  />
-                </label>
-              )}
-            </div>
+            )}
+
+            {reminderDraft.type === 'hourly' && (
+              <label className="flex items-end gap-3 text-xs text-slate-400">
+                <span className="flex-1">Minute mark (0-59)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={59}
+                  className="w-24 rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
+                  value={reminderDraft.minuteMark}
+                  onChange={(event) =>
+                    setReminderDraft((prev) => ({
+                      ...prev,
+                      minuteMark: Number.parseInt(event.target.value, 10) || 0
+                    }))
+                  }
+                />
+              </label>
+            )}
+
+            {['daily', 'weekly', 'monthly', 'yearly'].includes(reminderDraft.type) && (
+              <label className="space-y-1 text-xs text-slate-400">
+                <span>Time of day</span>
+                <input
+                  type="time"
+                  className="w-40 rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
+                  value={reminderDraft.time}
+                  onChange={(event) => setReminderDraft((prev) => ({ ...prev, time: event.target.value }))}
+                />
+              </label>
+            )}
+
             {reminderDraft.type === 'weekly' && (
-              <div className="rounded-lg bg-slate-900/60 p-3 text-xs text-slate-300">
-                <p className="mb-2 font-semibold">Days of the week</p>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Days of the week</p>
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAY_LABELS.map((label, index) => {
                     const active = reminderDraft.weeklyDays.includes(index);
@@ -1136,7 +1163,7 @@ export default function LifeSpanPage() {
                       <button
                         key={label}
                         type="button"
-                        className={`rounded-full px-3 py-1 transition-colors ${
+                        className={`rounded-full px-3 py-1 text-xs transition-colors ${
                           active ? 'bg-[color:var(--accent-600)] text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                         }`}
                         onClick={() =>
@@ -1155,28 +1182,34 @@ export default function LifeSpanPage() {
                 </div>
               </div>
             )}
+
             {reminderDraft.type === 'monthly' && (
               <label className="space-y-1 text-xs text-slate-400">
                 <span>Days of month (comma separated)</span>
                 <input
-                  className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                  placeholder="1, 15, 30"
                   value={reminderDraft.monthlyDays}
                   onChange={(event) => setReminderDraft((prev) => ({ ...prev, monthlyDays: event.target.value }))}
                 />
               </label>
             )}
+
             {reminderDraft.type === 'yearly' && (
               <label className="space-y-1 text-xs text-slate-400">
                 <span>Dates (comma separated MM-DD)</span>
                 <input
-                  className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
+                  placeholder="01-01, 07-04"
                   value={reminderDraft.yearlyDates}
                   onChange={(event) => setReminderDraft((prev) => ({ ...prev, yearlyDates: event.target.value }))}
                 />
               </label>
             )}
+
             {reminderError && <p className="text-xs text-rose-300">{reminderError}</p>}
-            <div className="flex justify-end">
+
+            <div className="flex justify-end gap-2">
               <button
                 type="submit"
                 className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
@@ -1186,7 +1219,7 @@ export default function LifeSpanPage() {
             </div>
           </form>
 
-          <div className="space-y-2">
+          <div className="grid gap-3 md:grid-cols-2">
             {reminders.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
                 No reminders yet. Add one above to get started.
@@ -1195,17 +1228,17 @@ export default function LifeSpanPage() {
               reminders.map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="flex flex-col gap-2 rounded-2xl bg-slate-800/70 p-4 text-sm text-slate-200 md:flex-row md:items-center md:justify-between"
+                  className="flex h-full flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm text-slate-200"
                 >
-                  <div>
+                  <div className="space-y-1">
                     <p className="font-semibold text-slate-100">{reminder.title}</p>
                     {reminder.description && <p className="text-xs text-slate-400">{reminder.description}</p>}
                     <p className="text-xs text-slate-400">{formatReminderSchedule(reminder.schedule)}</p>
                   </div>
-                  <div className="flex gap-2 text-xs">
+                  <div className="mt-4 flex justify-end text-xs">
                     <button
                       type="button"
-                      className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
+                      className="rounded-full bg-rose-500/20 px-3 py-1 text-rose-200 hover:bg-rose-500/30"
                       onClick={() => deleteReminder(reminder.id)}
                     >
                       Delete
