@@ -24,9 +24,16 @@ export default function App() {
           const base = import.meta.env.BASE_URL ?? '/';
           const baseURL = new URL(base, window.location.origin);
           const swURL = new URL('service-worker.js', baseURL);
+          console.info('[PWA] Registering service worker', {
+            baseURL: baseURL.href,
+            scope: baseURL.pathname,
+            swURL: swURL.href
+          });
           const registration = await navigator.serviceWorker.register(swURL.href, {
             scope: baseURL.pathname
           });
+
+          console.info('[PWA] Service worker registered', registration.scope);
 
           let refreshing = false;
           navigator.serviceWorker.addEventListener(
@@ -61,7 +68,7 @@ export default function App() {
             { signal: controller.signal }
           );
         } catch (error) {
-          console.error('Service worker registration failed', error);
+          console.error('[PWA] Service worker registration failed', error);
         }
       };
 
@@ -70,6 +77,14 @@ export default function App() {
       return () => controller.abort();
     }
     return undefined;
+  }, []);
+
+  useEffect(() => {
+    const handlePrompt = (event: Event) => {
+      console.info('[PWA] beforeinstallprompt fired');
+    };
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handlePrompt);
   }, []);
 
   useEffect(() => {
