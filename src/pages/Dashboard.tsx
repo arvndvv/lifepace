@@ -169,199 +169,204 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl bg-slate-800/60 p-4 shadow-lg">
-        <header className="mb-3 flex items-center justify-between text-sm text-slate-300">
-          <span>Today</span>
-          <span>
-            {format(new Date(), 'EEEE, MMM d')}
-          </span>
-        </header>
-        <div className="space-y-3">
-          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-700">
-            <div
-              className="h-3 rounded-full bg-[color:var(--accent-500)] transition-all"
-              style={{ width: `${dayProgress.percentElapsed}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-slate-400">
-            <div>
-              <p className="font-semibold text-slate-200">{Math.round(dayProgress.percentElapsed)}% done</p>
-              <p>{formatHoursMinutes(dayProgress.minutesRemaining)} left</p>
+    <>
+      <div className='md:hidden mb-5'>
+        <h1 className="text-2xl font-semibold text-slate-100">LifePace</h1>
+        <p className="text-sm text-slate-400">Design your weeks, honour your life.</p>
+      </div>
+      <div className="space-y-6">
+        <section className="rounded-2xl bg-slate-800/60 p-4 shadow-lg">
+          <header className="mb-3 flex items-center justify-between text-sm text-slate-300">
+            <span>Today</span>
+            <span>
+              {format(new Date(), 'EEEE, MMM d')}
+            </span>
+          </header>
+          <div className="space-y-3">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-700">
+              <div
+                className="h-3 rounded-full bg-[color:var(--accent-500)] transition-all"
+                style={{ width: `${dayProgress.percentElapsed}%` }}
+              />
             </div>
-            <div className="text-right">
-              <p className="font-semibold text-slate-200">{formatHoursMinutes(dayProgress.minutesElapsed)} spent</p>
-              <p>Total {formatHoursMinutes(dayProgress.totalMinutes)}</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-            <span>Active workload: {formatMinutes(assignedMinutes)}</span>
-            <span>Time left today: {formatMinutes(taskTimeLeftMinutes)}</span>
-          </div>
-          {assignedMinutes > MINUTES_PER_DAY && (
-            <p className="text-xs text-amber-300">
-              You have planned more than 24 hours today. Consider trimming tasks.
-            </p>
-          )}
-          {overCapacity && (
-            <p className="text-xs text-rose-300">
-              Planned work exceeds your remaining day — some tasks may need to move.
-            </p>
-          )}
-          <div className="space-y-2 text-xs text-slate-400">
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span>Completed</span>
-                <span className="font-semibold text-slate-200">
-                  {todayTaskStats.completed}/{todayTaskStats.total}
-                </span>
+            <div className="flex items-center justify-between text-xs text-slate-400">
+              <div>
+                <p className="font-semibold text-slate-200">{Math.round(dayProgress.percentElapsed)}% done</p>
+                <p>{formatHoursMinutes(dayProgress.minutesRemaining)} left</p>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
-                <div
-                  className="h-2 rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${todayTaskStats.completedPercent}%` }}
-                />
+              <div className="text-right">
+                <p className="font-semibold text-slate-200">{formatHoursMinutes(dayProgress.minutesElapsed)} spent</p>
+                <p>Total {formatHoursMinutes(dayProgress.totalMinutes)}</p>
               </div>
             </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span>In progress</span>
-                <span className="font-semibold text-slate-200">
-                  {todayTaskStats.inProgress}/{todayTaskStats.total}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
-                <div
-                  className="h-2 rounded-full bg-sky-500 transition-all"
-                  style={{ width: `${todayTaskStats.inProgressPercent}%` }}
-                />
-              </div>
+            <div className="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+              <span>Active workload: {formatMinutes(assignedMinutes)}</span>
+              <span>Time left today: {formatMinutes(taskTimeLeftMinutes)}</span>
             </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <span>Progressive</span>
-                <span className="font-semibold text-slate-200">
-                  {todayTaskStats.progressive}/{todayTaskStats.total}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
-                <div
-                  className="h-2 rounded-full bg-amber-400 transition-all"
-                  style={{ width: `${todayTaskStats.progressivePercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Today&apos;s tasks</h2>
-          <span className="text-xs text-slate-400">{todayTasks.length} scheduled</span>
-        </div>
-        <ul className="space-y-2">
-          {todayTasks.length === 0 && (
-            <li className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-              Plan something meaningful for today.
-            </li>
-          )}
-          {todayTasks.map((task) => {
-            const durationMinutes = getTaskDurationMinutes(task);
-            return (
-              <li
-                key={task.id}
-                className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
-                onClick={() => setViewTaskId(task.id)}
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-medium text-slate-100">{task.title}</h3>
-                        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                          {task.status.replace('_', ' ')}
-                        </span>
-                        {task.progressive && (
-                          <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
-                            Progressive
-                          </span>
-                        )}
-                      </div>
-                      {task.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
-                          {task.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
-                      <p className="text-xs text-slate-400">
-                        {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
-                        {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
-                        {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
-                        {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
-                      <button
-                        className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
-                        onClick={() => openEditModal(task)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
-                        onClick={() => actions.deleteTask(task.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
-                    {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
-                      <button
-                        key={status}
-                        type="button"
-                        className={`rounded-full px-3 py-1 capitalize transition-colors ${
-                          task.status === status
-                            ? 'bg-[color:var(--accent-600)] text-white'
-                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                        }`}
-                        onClick={() => actions.setTaskStatus(task.id, status)}
-                      >
-                        {status.replace('_', ' ')}
-                      </button>
-                    ))}
-                  </div>
+            {assignedMinutes > MINUTES_PER_DAY && (
+              <p className="text-xs text-amber-300">
+                You have planned more than 24 hours today. Consider trimming tasks.
+              </p>
+            )}
+            {overCapacity && (
+              <p className="text-xs text-rose-300">
+                Planned work exceeds your remaining day — some tasks may need to move.
+              </p>
+            )}
+            <div className="space-y-2 text-xs text-slate-400">
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span>Completed</span>
+                  <span className="font-semibold text-slate-200">
+                    {todayTaskStats.completed}/{todayTaskStats.total}
+                  </span>
                 </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                  <div
+                    className="h-2 rounded-full bg-emerald-500 transition-all"
+                    style={{ width: `${todayTaskStats.completedPercent}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span>In progress</span>
+                  <span className="font-semibold text-slate-200">
+                    {todayTaskStats.inProgress}/{todayTaskStats.total}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                  <div
+                    className="h-2 rounded-full bg-sky-500 transition-all"
+                    style={{ width: `${todayTaskStats.inProgressPercent}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span>Progressive</span>
+                  <span className="font-semibold text-slate-200">
+                    {todayTaskStats.progressive}/{todayTaskStats.total}
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                  <div
+                    className="h-2 rounded-full bg-amber-400 transition-all"
+                    style={{ width: `${todayTaskStats.progressivePercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Today&apos;s tasks</h2>
+            <span className="text-xs text-slate-400">{todayTasks.length} scheduled</span>
+          </div>
+          <ul className="space-y-2">
+            {todayTasks.length === 0 && (
+              <li className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                Plan something meaningful for today.
               </li>
-            );
-          })}
-        </ul>
-      </section>
-      <TaskPlannerModal
-        mode={plannerModal?.mode ?? 'edit'}
-        open={Boolean(plannerModal)}
-        draft={plannerDraft}
-        allocation={plannerAllocation}
-        preferences={preferences}
-        availableTags={taskTags}
-        error={plannerError}
-        onClose={closePlannerModal}
-        onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
-        onSubmit={handlePlannerSubmit}
-      />
+            )}
+            {todayTasks.map((task) => {
+              const durationMinutes = getTaskDurationMinutes(task);
+              return (
+                <li
+                  key={task.id}
+                  className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
+                  onClick={() => setViewTaskId(task.id)}
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-slate-100">{task.title}</h3>
+                          <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
+                            {task.status.replace('_', ' ')}
+                          </span>
+                          {task.progressive && (
+                            <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
+                              Progressive
+                            </span>
+                          )}
+                        </div>
+                        {task.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
+                            {task.tags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                        <p className="text-xs text-slate-400">
+                          {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
+                          {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
+                          {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
+                          {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                        <button
+                          className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
+                          onClick={() => openEditModal(task)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
+                          onClick={() => actions.deleteTask(task.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                      {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          className={`rounded-full px-3 py-1 capitalize transition-colors ${task.status === status
+                              ? 'bg-[color:var(--accent-600)] text-white'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            }`}
+                          onClick={() => actions.setTaskStatus(task.id, status)}
+                        >
+                          {status.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+        <TaskPlannerModal
+          mode={plannerModal?.mode ?? 'edit'}
+          open={Boolean(plannerModal)}
+          draft={plannerDraft}
+          allocation={plannerAllocation}
+          preferences={preferences}
+          availableTags={taskTags}
+          error={plannerError}
+          onClose={closePlannerModal}
+          onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
+          onSubmit={handlePlannerSubmit}
+        />
 
-      <TaskDetailsDialog
-        task={viewTask}
-        open={Boolean(viewTask)}
-        onClose={() => setViewTaskId(null)}
-        onEdit={openEditModal}
-      />
+        <TaskDetailsDialog
+          task={viewTask}
+          open={Boolean(viewTask)}
+          onClose={() => setViewTaskId(null)}
+          onEdit={openEditModal}
+        />
 
-    </div>
+      </div>
+    </>
   );
 }

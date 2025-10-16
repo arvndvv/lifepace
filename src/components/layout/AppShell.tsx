@@ -57,8 +57,8 @@ export default function AppShell() {
   return (
     <div className="min-h-screen bg-transparent">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col bg-slate-900/90 backdrop-blur md:rounded-3xl md:border md:border-slate-800/80 md:px-8 md:py-6 md:shadow-[0_25px_60px_-20px_rgba(15,23,42,0.8)]">
-        <header className="flex flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-0">
-          <div>
+        <header className="hidden md:flex flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-0">
+          <div >
             <h1 className="text-2xl font-semibold text-slate-100">LifePace</h1>
             <p className="text-sm text-slate-400">Design your weeks, honour your life.</p>
           </div>
@@ -85,7 +85,7 @@ export default function AppShell() {
           </nav>
         </header>
 
-        <main className="flex-1 px-4 pb-20 md:px-0 md:pb-8">
+        <main className="flex-1 px-4 pb-20 pt-5 md:pt-0 md:px-0 md:pb-8">
           <Outlet />
         </main>
 

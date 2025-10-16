@@ -478,7 +478,7 @@ export default function LifeSpanPage() {
           [
             { key: 'timeline', label: 'Weeks of life' },
             { key: 'goals', label: 'Goals map' },
-            { key: 'reminders', label: 'Reminders' }
+            //{ key: 'reminders', label: 'Reminders' }
           ] as const
         ).map((tab) => (
           <button

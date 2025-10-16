@@ -34,8 +34,9 @@ import {
   timeLabel,
   type TaskDraftForm
 } from '../utils/taskPlanner';
+import TasksHeader from '../components/tasks/TasksHeader';
 
-type TaskViewRange = 'today' | 'week' | 'month' | 'all';
+export type TaskViewRange = 'today' | 'week' | 'month' | 'all';
 
 const PAGE_SIZE = 10;
 
@@ -421,6 +422,8 @@ export default function TasksPage() {
   const hasNextPage = page < totalPages;
 
   return (
+    <>
+    <TasksHeader setRangeFilter={setRangeFilter} rangeFilter={rangeFilter} setSelectedDate={setSelectedDate} selectedDayTasks={selectedDayTasks} selectedDaySummary={selectedDaySummary} selectedDayAllocation={selectedDayAllocation} selectedDateLabel={selectedDateLabel} moveWeek={moveWeek} setWeekCursor={setWeekCursor} weekCursor={weekCursor} moveMonth={moveMonth} setMonthCursor={setMonthCursor} monthCursor={monthCursor} />
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-300">
@@ -428,11 +431,10 @@ export default function TasksPage() {
             <button
               key={range}
               type="button"
-              className={`rounded-full px-3 py-1 transition-colors ${
-                rangeFilter === range
+              className={`rounded-full px-3 py-1 transition-colors ${rangeFilter === range
                   ? 'bg-[color:var(--accent-600)] text-white'
                   : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
+                }`}
               onClick={() => handleViewChange(range)}
               aria-pressed={rangeFilter === range}
             >
@@ -445,59 +447,9 @@ export default function TasksPage() {
         </div>
       </div>
 
-
-
-      {rangeFilter === 'today' && (
-        <section className="space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
-              <p className="text-xs text-slate-400">
-                {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Assigned{' '}
-                {formatMinutes(selectedDaySummary.assignedMinutes)} • Spent {formatMinutes(selectedDaySummary.spentMinutes)} • Active load{' '}
-                {formatMinutes(selectedDayAllocation.assigned)} • Time left {formatMinutes(selectedDayAllocation.remaining)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <button
-                type="button"
-                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
-                onClick={() => {
-                  setSelectedDate(today);
-                  setRangeFilter('today');
-                }}
-              >
-                Jump to today
-              </button>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Planned</p>
-              <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.planned)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">In progress</p>
-              <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.in_progress)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Completed</p>
-              <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.completed)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Progressive</p>
-              <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.progressiveMinutes)}</p>
-            </div>
-          </div>
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="rounded-2xl  p-0">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
             <input
               type="search"
               placeholder="Search by task or description"
@@ -507,15 +459,13 @@ export default function TasksPage() {
             />
           </div>
           <div className="relative">
-            <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
             <button
               type="button"
               onClick={() => setIsFilterOpen((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
-                selectedTags.length > 0
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${selectedTags.length > 0
                   ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
                   : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
-              }`}
+                }`}
             >
               <span>Tag filters</span>
               <span className="text-[11px] uppercase tracking-wide text-slate-400">
@@ -583,28 +533,61 @@ export default function TasksPage() {
             ))}
           </div>
         )}
+
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-        <span>
-          Filtered total — Assigned {formatMinutes(globalSummary.assignedMinutes)} • Spent {formatMinutes(globalSummary.spentMinutes)} • Tasks {globalSummary.total}
-        </span>
-      </div>
 
-      {selectedTagSummaries.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-          <p className="mb-2 text-[11px] uppercase text-slate-500">Tag breakdown</p>
-          <div className="flex flex-wrap gap-4">
-            {selectedTagSummaries.map(({ tag, summary }) => (
-              <div key={tag} className="space-y-1">
-                <p className="font-medium text-slate-200">{tag}</p>
-                <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
-                <p>Spent {formatMinutes(summary.spentMinutes)}</p>
-              </div>
-            ))}
+
+
+
+      {rangeFilter === 'today' && (
+        <section className="space-y-4">
+          {/*<header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
+              <p className="text-xs text-slate-400">
+                {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Assigned{' '}
+                {formatMinutes(selectedDaySummary.assignedMinutes)} • Spent {formatMinutes(selectedDaySummary.spentMinutes)} • Active load{' '}
+                {formatMinutes(selectedDayAllocation.assigned)} • Time left {formatMinutes(selectedDayAllocation.remaining)}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <button
+                type="button"
+                className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                onClick={() => {
+                  setSelectedDate(today);
+                  setRangeFilter('today');
+                }}
+              >
+                Jump to today
+              </button>
+            </div>
+          </header>*/}
+
+          <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Planned</p>
+              <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.planned)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">In progress</p>
+              <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.in_progress)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Completed</p>
+              <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.completed)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <p className="text-[11px] uppercase text-slate-500">Progressive</p>
+              <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.progressiveMinutes)}</p>
+            </div>
           </div>
-        </div>
-      )}
+
           {selectedDayTasks.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
               No tasks planned for this day. Add one above.
@@ -671,11 +654,10 @@ export default function TasksPage() {
                             <button
                               key={status}
                               type="button"
-                              className={`rounded-full px-3 py-1 capitalize transition-colors ${
-                                task.status === status
+                              className={`rounded-full px-3 py-1 capitalize transition-colors ${task.status === status
                                   ? 'bg-[color:var(--accent-600)] text-white'
                                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                              }`}
+                                }`}
                               onClick={() => actions.setTaskStatus(task.id, status)}
                             >
                               {status.replace('_', ' ')}
@@ -717,7 +699,7 @@ export default function TasksPage() {
 
       {rangeFilter === 'week' && (
         <section className="space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-3">
+          {/*<header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-200">Week of {format(weekCursor, 'MMM d')}</h2>
               <p className="text-xs text-slate-400">Select a day to jump into the detailed view.</p>
@@ -748,7 +730,7 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          </header>
+          </header>*/}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
             {weekSummaries.map(({ date, iso, summary }) => {
               const isSelected = iso === selectedDate;
@@ -757,11 +739,10 @@ export default function TasksPage() {
                   key={iso}
                   type="button"
                   onClick={() => goToDate(iso)}
-                  className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
-                    isSelected
+                  className={`rounded-2xl border px-3 py-3 text-left transition-colors ${isSelected
                       ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
                       : 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <span className="font-semibold text-slate-200">{format(date, 'EEE')}</span>
@@ -784,7 +765,7 @@ export default function TasksPage() {
 
       {rangeFilter === 'month' && (
         <section className="space-y-4">
-          <header className="flex flex-wrap items-center justify-between gap-3">
+          {/*<header className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-200">{format(monthCursor, 'MMMM yyyy')}</h2>
               <p className="text-xs text-slate-400">Click a day to open it in the Today view.</p>
@@ -816,7 +797,7 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          </header>
+          </header>*/}
           <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-wide text-slate-500">
             {WEEKDAY_LABELS.map((label) => (
               <span key={label} className="text-center">
@@ -836,13 +817,12 @@ export default function TasksPage() {
                     key={`${weekIndex}-${dayIndex}`}
                     type="button"
                     onClick={() => goToDate(iso)}
-                    className={`rounded-xl border px-2 py-2 text-left transition-colors ${
-                      isSelected
+                    className={`rounded-xl border px-2 py-2 text-left transition-colors ${isSelected
                         ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
                         : inMonth
-                        ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
-                        : 'border-slate-900 bg-slate-900/30 text-slate-600'
-                    }`}
+                          ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
+                          : 'border-slate-900 bg-slate-900/30 text-slate-600'
+                      }`}
                   >
                     <span className="block text-xs font-semibold text-slate-200">{format(date, 'd')}</span>
                     {summary.total > 0 && (
@@ -889,11 +869,10 @@ export default function TasksPage() {
                           setMonthCursor(startOfMonth(monthDate));
                           handleViewChange('month');
                         }}
-                        className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
-                          hasTasks
+                        className={`rounded-2xl border px-3 py-3 text-left transition-colors ${hasTasks
                             ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
                             : 'border-slate-900 bg-slate-900/30 text-slate-600 hover:border-slate-800'
-                        }`}
+                          }`}
                       >
                         <span className="text-sm font-semibold text-slate-200">{format(monthDate, 'MMM')}</span>
                         <div className="mt-2 space-y-1 text-[11px] text-slate-300">
@@ -914,7 +893,7 @@ export default function TasksPage() {
         </section>
       )}
 
-      
+
       <TaskPlannerModal
         mode={plannerModal?.mode ?? 'create'}
         open={Boolean(plannerModal)}
@@ -935,5 +914,6 @@ export default function TasksPage() {
         onEdit={(task) => openEditModal(task)}
       />
     </div>
+    </>
   );
 }
