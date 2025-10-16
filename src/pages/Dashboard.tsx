@@ -10,10 +10,9 @@ import {
   getTotalAssignedMinutesForDate,
   MINUTES_PER_DAY
 } from '../utils/tasks';
-import {
-  TaskPlannerModal
-} from '../components/tasks/TaskPlannerModal';
+import { TaskPlannerModal } from '../components/tasks/TaskPlannerModal';
 import { TaskDetailsDialog } from '../components/tasks/TaskDetailsDialog';
+import { MarkdownContent } from '../components/MarkdownContent';
 import {
   buildReminder,
   canFitDuration,
@@ -56,6 +55,7 @@ export default function DashboardPage() {
     return { ...base, scheduledFor: today };
   });
   const [plannerError, setPlannerError] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
 
   const todayTasks = useMemo(
     () =>
@@ -97,8 +97,29 @@ export default function DashboardPage() {
       return { assigned: 0, remaining: MINUTES_PER_DAY };
     }
     const scheduledFor = plannerDraft.scheduledFor || today;
-    return getRemainingMinutesForDay(tasks, scheduledFor, plannerModal.taskId, { excludeCompleted: true });
-  }, [plannerModal, plannerDraft.scheduledFor, tasks, today]);
+    const assigned = getTotalAssignedMinutesForDate(tasks, scheduledFor, plannerModal.taskId, {
+      excludeCompleted: true
+    });
+
+    let capacityMinutes = MINUTES_PER_DAY;
+    if (profile) {
+      if (scheduledFor === today) {
+        const progress = getDayProgress(profile.dayStartHour, profile.dayEndHour);
+        capacityMinutes = Math.max(0, progress.minutesRemaining);
+      } else {
+        const rawSpan = profile.dayEndHour - profile.dayStartHour;
+        const spanHours = rawSpan > 0 ? rawSpan : rawSpan + 24;
+        capacityMinutes = Math.max(0, Math.min(24, spanHours) * 60);
+      }
+    }
+
+    const remaining = Math.max(0, capacityMinutes - assigned);
+    return { assigned, remaining };
+  }, [plannerModal, plannerDraft.scheduledFor, tasks, today, profile]);
+
+  const toggleDescription = (taskId: string) => {
+    setExpandedDescriptions((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
 
   const openEditModal = (task: Task) => {
     setViewTaskId(null);
@@ -302,7 +323,26 @@ export default function DashboardPage() {
                             ))}
                           </div>
                         )}
-                        {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                        {task.description && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 text-xs text-[color:var(--accent-300)] hover:text-[color:var(--accent-200)]"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleDescription(task.id);
+                              }}
+                            >
+                              <span>Description…</span>
+                              <span>{expandedDescriptions[task.id] ? '▲' : '▼'}</span>
+                            </button>
+                            {expandedDescriptions[task.id] && (
+                              <div className="mt-2 rounded-xl px-3 py-2">
+                                <MarkdownContent content={task.description} />
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <p className="text-xs text-slate-400">
                           {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
                           {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}

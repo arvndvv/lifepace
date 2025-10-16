@@ -6,7 +6,6 @@ import {
   endOfMonth,
   endOfWeek,
   format,
-  getMonth,
   getYear,
   isSameMonth,
   parseISO,
@@ -17,7 +16,8 @@ import { useAppData } from '../context/AppDataContext';
 import type { Task, TaskStatus } from '../types';
 import { TaskPlannerModal } from '../components/tasks/TaskPlannerModal';
 import { TaskDetailsDialog } from '../components/tasks/TaskDetailsDialog';
-import { getTodayISO } from '../utils/date';
+import { MarkdownContent } from '../components/MarkdownContent';
+import { getDayProgress, getTodayISO } from '../utils/date';
 import {
   formatMinutes,
   getRemainingMinutesForDay,
@@ -34,7 +34,6 @@ import {
   timeLabel,
   type TaskDraftForm
 } from '../utils/taskPlanner';
-import TasksHeader from '../components/tasks/TasksHeader';
 
 export type TaskViewRange = 'today' | 'week' | 'month' | 'all';
 
@@ -49,6 +48,7 @@ interface TaskAggregate {
   spentMinutes: number;
   progressiveMinutes: number;
   statusMinutes: Record<TaskStatus, number>;
+  statusCounts: Record<TaskStatus, number>;
 }
 
 
@@ -66,17 +66,25 @@ function summarizeTasks(list: Task[]): TaskAggregate {
       in_progress: 0,
       completed: 0,
       skipped: 0
+    },
+    statusCounts: {
+      planned: 0,
+      in_progress: 0,
+      completed: 0,
+      skipped: 0
     }
   };
 
   return list.reduce((acc, task) => {
     acc.total += 1;
+    acc.statusCounts[task.status] += 1;
     if (task.status === 'completed') {
       acc.completed += 1;
     } else if (task.status === 'in_progress') {
       acc.inProgress += 1;
     }
-    if (task.progressive ?? true) {
+    const progressiveEligible = (task.progressive ?? true) && task.status !== 'skipped';
+    if (progressiveEligible) {
       acc.progressive += 1;
     }
     const minutes = getTaskDurationMinutes(task);
@@ -85,7 +93,7 @@ function summarizeTasks(list: Task[]): TaskAggregate {
       acc.spentMinutes += minutes;
     }
     acc.statusMinutes[task.status] += minutes;
-    if (task.progressive ?? true) {
+    if (progressiveEligible) {
       acc.progressiveMinutes += minutes;
     }
     return acc;
@@ -96,7 +104,7 @@ const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function TasksPage() {
   const {
-    state: { tasks, preferences, taskTags },
+    state: { tasks, preferences, taskTags, profile },
     actions
   } = useAppData();
 
@@ -115,6 +123,7 @@ export default function TasksPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [pendingTagFilters, setPendingTagFilters] = useState<string[]>([]);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
 
   const [rangeFilter, setRangeFilter] = useState<TaskViewRange>('today');
   const [searchTerm, setSearchTerm] = useState('');
@@ -257,35 +266,21 @@ export default function TasksPage() {
   }, [monthCursor]);
 
   const yearsSummary = useMemo(() => {
-    const yearMap = new Map<number, Map<number, Task[]>>();
+    const yearMap = new Map<number, Task[]>();
     filteredTasks.forEach((task) => {
       const date = parseISO(task.scheduledFor);
       if (Number.isNaN(date.getTime())) {
         return;
       }
       const year = getYear(date);
-      const month = getMonth(date);
-      const monthMap = yearMap.get(year) ?? new Map<number, Task[]>();
-      const bucket = monthMap.get(month);
-      if (bucket) {
-        bucket.push(task);
-      } else {
-        monthMap.set(month, [task]);
-      }
-      if (!yearMap.has(year)) {
-        yearMap.set(year, monthMap);
-      }
+      const list = yearMap.get(year) ?? [];
+      list.push(task);
+      yearMap.set(year, list);
     });
 
     return Array.from(yearMap.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([year, monthMap]) => ({
-        year,
-        months: Array.from({ length: 12 }, (_, month) => ({
-          month,
-          summary: summarizeTasks(monthMap.get(month) ?? [])
-        }))
-      }));
+      .map(([year, list]) => ({ year, summary: summarizeTasks(list) }));
   }, [filteredTasks]);
 
   const handleViewChange = (next: TaskViewRange) => {
@@ -312,6 +307,13 @@ export default function TasksPage() {
     setMonthCursor((prev) => addMonths(prev, offset));
   };
 
+  const goToYear = (year: number) => {
+    const target = startOfMonth(new Date(year, 0, 1));
+    setMonthCursor(target);
+    setSelectedDate(format(target, 'yyyy-MM-dd'));
+    setRangeFilter('month');
+  };
+
   const applyTagFilters = () => {
     setSelectedTags(pendingTagFilters);
     setIsFilterOpen(false);
@@ -328,6 +330,129 @@ export default function TasksPage() {
     );
   };
 
+  const FiltersPanel = () => (
+    <>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[220px]">
+            <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
+            <input
+              type="search"
+              placeholder="Search by task or description"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
+            />
+          </div>
+          <div className="relative">
+            <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
+                selectedTags.length > 0
+                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
+                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
+              }`}
+            >
+              <span>Tag filters</span>
+              <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                {selectedTags.length} selected
+              </span>
+            </button>
+            {isFilterOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-4 shadow-xl">
+                <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
+                {taskTags.length === 0 ? (
+                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
+                ) : (
+                  <div className="max-h-52 space-y-2 overflow-auto pr-1 text-sm text-slate-200">
+                    {taskTags.map((tag) => (
+                      <label
+                        key={tag}
+                        className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/60"
+                      >
+                        <span>{tag}</span>
+                        <input
+                          type="checkbox"
+                          checked={pendingTagFilters.includes(tag)}
+                          onChange={() => togglePendingTag(tag)}
+                          className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="rounded-lg px-3 py-1 text-slate-300 hover:text-rose-300"
+                    onClick={() => {
+                      clearSelectedTags();
+                      setIsFilterOpen(false);
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                    onClick={applyTagFilters}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="ml-auto">
+            <label className="mb-1 block text-xs uppercase text-slate-400">&nbsp;</label>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
+            >
+              Add task
+            </button>
+          </div>
+        </div>
+        {selectedTags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedTags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+        <span>
+          Filtered total — Assigned {formatMinutes(globalSummary.assignedMinutes)} • Spent {formatMinutes(globalSummary.spentMinutes)} • Tasks {globalSummary.total}
+        </span>
+      </div>
+
+      {selectedTagSummaries.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+          <p className="mb-2 text-[11px] uppercase text-slate-500">Tag breakdown</p>
+          <div className="flex flex-wrap gap-4">
+            {selectedTagSummaries.map(({ tag, summary }) => (
+              <div key={tag} className="space-y-1">
+                <p className="font-medium text-slate-200">{tag}</p>
+                <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                <p>Spent {formatMinutes(summary.spentMinutes)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const toggleDescription = (taskId: string) => {
+    setExpandedDescriptions((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
   const createPlannerDraft = (scheduledFor?: string) => {
     const base = createTaskDraft(defaultStartTime);
     return { ...base, scheduledFor: scheduledFor ?? getTodayISO() };
@@ -358,8 +483,25 @@ export default function TasksPage() {
     }
     const scheduledFor = plannerDraft.scheduledFor || selectedDate;
     const excludeId = plannerModal.mode === 'edit' ? plannerModal.taskId : undefined;
-    return getRemainingMinutesForDay(tasks, scheduledFor, excludeId, { excludeCompleted: true });
-  }, [plannerModal, plannerDraft.scheduledFor, tasks, selectedDate]);
+    const assigned = getTotalAssignedMinutesForDate(tasks, scheduledFor, excludeId, {
+      excludeCompleted: true
+    });
+
+    let capacityMinutes = MINUTES_PER_DAY;
+    if (profile) {
+      if (scheduledFor === today) {
+        const progress = getDayProgress(profile.dayStartHour, profile.dayEndHour);
+        capacityMinutes = Math.max(0, progress.minutesRemaining);
+      } else {
+        const rawSpan = profile.dayEndHour - profile.dayStartHour;
+        const spanHours = rawSpan > 0 ? rawSpan : rawSpan + 24;
+        capacityMinutes = Math.max(0, Math.min(24, spanHours) * 60);
+      }
+    }
+
+    const remaining = Math.max(0, capacityMinutes - assigned);
+    return { assigned, remaining };
+  }, [plannerModal, plannerDraft.scheduledFor, tasks, selectedDate, profile, today]);
 
   const handlePlannerSubmit = () => {
     if (!plannerModal) {
@@ -422,8 +564,6 @@ export default function TasksPage() {
   const hasNextPage = page < totalPages;
 
   return (
-    <>
-    <TasksHeader setRangeFilter={setRangeFilter} rangeFilter={rangeFilter} setSelectedDate={setSelectedDate} selectedDayTasks={selectedDayTasks} selectedDaySummary={selectedDaySummary} selectedDayAllocation={selectedDayAllocation} selectedDateLabel={selectedDateLabel} moveWeek={moveWeek} setWeekCursor={setWeekCursor} weekCursor={weekCursor} moveMonth={moveMonth} setMonthCursor={setMonthCursor} monthCursor={monthCursor} />
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-300">
@@ -447,103 +587,12 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl  p-0">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[220px]">
-            <input
-              type="search"
-              placeholder="Search by task or description"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
-            />
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${selectedTags.length > 0
-                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
-                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
-                }`}
-            >
-              <span>Tag filters</span>
-              <span className="text-[11px] uppercase tracking-wide text-slate-400">
-                {selectedTags.length} selected
-              </span>
-            </button>
-            {isFilterOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-4 shadow-xl">
-                <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
-                {taskTags.length === 0 ? (
-                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
-                ) : (
-                  <div className="space-y-2 text-sm text-slate-200">
-                    {taskTags.map((tag) => (
-                      <label key={tag} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/60">
-                        <span>{tag}</span>
-                        <input
-                          type="checkbox"
-                          checked={pendingTagFilters.includes(tag)}
-                          onChange={() => togglePendingTag(tag)}
-                          className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-4 flex items-center justify-between gap-2 text-xs">
-                  <button
-                    type="button"
-                    className="rounded-lg px-3 py-1 text-slate-300 hover:text-rose-300"
-                    onClick={() => {
-                      clearSelectedTags();
-                      setIsFilterOpen(false);
-                    }}
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
-                    onClick={applyTagFilters}
-                  >
-                    Apply
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="ml-auto">
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
-            >
-              Add task
-            </button>
-          </div>
-        </div>
-        {selectedTags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {selectedTags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-      </div>
-
-
-
+      <FiltersPanel />
 
 
       {rangeFilter === 'today' && (
         <section className="space-y-4">
-          {/*<header className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+                      <div>
               <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
               <p className="text-xs text-slate-400">
                 {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Assigned{' '}
@@ -563,7 +612,6 @@ export default function TasksPage() {
                 Jump to today
               </button>
             </div>
-          </header>*/}
 
           <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
@@ -626,7 +674,26 @@ export default function TasksPage() {
                                 ))}
                               </div>
                             )}
-                            {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                            {task.description && (
+                              <div className="pt-1">
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-2 text-xs text-[color:var(--accent-300)] hover:text-[color:var(--accent-200)]"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    toggleDescription(task.id);
+                                  }}
+                                >
+                                  <span>Description…</span>
+                                  <span>{expandedDescriptions[task.id] ? '▲' : '▼'}</span>
+                                </button>
+                                {expandedDescriptions[task.id] && (
+                                  <div className="mt-2 rounded-xl   px-3 py-2">
+                                    <MarkdownContent content={task.description} />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             <p className="text-xs text-slate-400">
                               {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
                               {task.deadlineAt ? ` • Deadline ${timeLabel(task.deadlineAt)}` : ''}
@@ -699,8 +766,7 @@ export default function TasksPage() {
 
       {rangeFilter === 'week' && (
         <section className="space-y-4">
-          {/*<header className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+                      <div>
               <h2 className="text-lg font-semibold text-slate-200">Week of {format(weekCursor, 'MMM d')}</h2>
               <p className="text-xs text-slate-400">Select a day to jump into the detailed view.</p>
             </div>
@@ -730,7 +796,6 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          </header>*/}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
             {weekSummaries.map(({ date, iso, summary }) => {
               const isSelected = iso === selectedDate;
@@ -765,8 +830,7 @@ export default function TasksPage() {
 
       {rangeFilter === 'month' && (
         <section className="space-y-4">
-          {/*<header className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+                      <div>
               <h2 className="text-lg font-semibold text-slate-200">{format(monthCursor, 'MMMM yyyy')}</h2>
               <p className="text-xs text-slate-400">Click a day to open it in the Today view.</p>
             </div>
@@ -797,7 +861,6 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          </header>*/}
           <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-wide text-slate-500">
             {WEEKDAY_LABELS.map((label) => (
               <span key={label} className="text-center">
@@ -843,52 +906,37 @@ export default function TasksPage() {
       )}
 
       {rangeFilter === 'all' && (
-        <section className="space-y-6">
+        <section className="space-y-4">
           {yearsSummary.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
               No tasks recorded yet. Start planning to see yearly stats.
             </p>
           ) : (
-            yearsSummary.map(({ year, months }) => (
-              <div key={year} className="space-y-3">
-                <header className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-slate-200">{year}</h2>
-                  <span className="text-xs text-slate-400">Tap a month to dig deeper.</span>
-                </header>
-                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {months.map(({ month, summary }) => {
-                    const monthDate = new Date(year, month, 1);
-                    const iso = format(monthDate, 'yyyy-MM-dd');
-                    const hasTasks = summary.total > 0;
-                    return (
-                      <button
-                        key={`${year}-${month}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDate(iso);
-                          setMonthCursor(startOfMonth(monthDate));
-                          handleViewChange('month');
-                        }}
-                        className={`rounded-2xl border px-3 py-3 text-left transition-colors ${hasTasks
-                            ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
-                            : 'border-slate-900 bg-slate-900/30 text-slate-600 hover:border-slate-800'
-                          }`}
-                      >
-                        <span className="text-sm font-semibold text-slate-200">{format(monthDate, 'MMM')}</span>
-                        <div className="mt-2 space-y-1 text-[11px] text-slate-300">
-                          <p>Total {summary.total}</p>
-                          <p className="text-emerald-300">Completed {summary.completed}</p>
-                          <p className="text-sky-300">In progress {summary.inProgress}</p>
-                          <p className="text-amber-300">Progressive {summary.progressive}</p>
-                          <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
-                          <p>Spent {formatMinutes(summary.spentMinutes)}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {yearsSummary.map(({ year, summary }) => (
+                <button
+                  key={year}
+                  type="button"
+                  onClick={() => goToYear(year)}
+                  className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-left transition-colors hover:border-[color:var(--accent-500)]/70"
+                >
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <h3 className="text-lg font-semibold text-slate-100">{year}</h3>
+                    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide">
+                      View months <span>▸</span>
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-[11px] text-slate-300">
+                    <p>Total {summary.total}</p>
+                    <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                    <p>Spent {formatMinutes(summary.spentMinutes)}</p>
+                    <p className="text-emerald-300">Completed {summary.completed}</p>
+                    <p className="text-sky-300">In progress {summary.inProgress}</p>
+                    <p className="text-amber-300">Progressive {summary.progressive}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </section>
       )}
@@ -914,6 +962,5 @@ export default function TasksPage() {
         onEdit={(task) => openEditModal(task)}
       />
     </div>
-    </>
   );
 }

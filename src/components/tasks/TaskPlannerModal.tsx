@@ -181,9 +181,15 @@ export function TaskPlannerModal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur" onClick={onClose}>
-        <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
-          <div className="mb-4 flex items-center justify-between">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-3 py-6 backdrop-blur"
+        onClick={onClose}
+      >
+        <div
+          className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-slate-900/95 p-6 shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-100">{mode === 'create' ? 'Plan a task' : 'Edit task'}</h2>
             <button
               type="button"
@@ -193,7 +199,7 @@ export function TaskPlannerModal({
               Close
             </button>
           </div>
-          <form className="space-y-3" onSubmit={handleSubmit}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <input
               className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
               placeholder="What will you do?"
@@ -283,11 +289,11 @@ export function TaskPlannerModal({
                 )}
                 {tagDropdownOpen && (
                   <div className="relative">
-                    <div className="absolute z-20 mt-2 w-full max-h-48 overflow-auto rounded-xl border border-slate-700 bg-slate-900/95 p-3 shadow-xl">
+                    <div className="absolute z-20 mt-2 w-full max-h-60 overflow-auto rounded-xl border border-slate-700 bg-slate-900/95 p-3 shadow-xl">
                       {availableTags.length === 0 ? (
                         <p className="text-xs text-slate-500">No tags yet. Add tags from Settings.</p>
                       ) : (
-                        <div className="space-y-2 text-xs text-slate-200">
+                        <div className="space-y-2 text-xs text-slate-200 pr-1">
                           {availableTags.map((tag) => {
                             const checked = draft.tags.includes(tag);
                             return (
