@@ -17,7 +17,7 @@ export default function App() {
   } = useAppData();
 
   useEffect(() => {
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator) {
       const controller = new AbortController();
       const register = async () => {
         try {
@@ -67,6 +67,9 @@ export default function App() {
             },
             { signal: controller.signal }
           );
+          navigator.serviceWorker.ready
+            .then(() => console.info('[PWA] service worker ready and controlling the page'))
+            .catch((error) => console.error('[PWA] waiting for service worker readiness failed', error));
         } catch (error) {
           console.error('[PWA] Service worker registration failed', error);
         }
