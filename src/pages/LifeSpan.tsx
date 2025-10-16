@@ -6,6 +6,7 @@ import { buildLifeCalendar, type WeekCell } from '../utils/date';
 import { createId } from '../utils/id';
 import { GoalsGraph, GoalsGraphHandle } from '../components/GoalsGraph';
 import { Portal } from '../components/Portal';
+import { DialogCloseButton } from '../components/DialogCloseButton';
 
 const CELL_SIZE = 12;
 const CELL_GAP = 2;
@@ -590,7 +591,7 @@ export default function LifeSpanPage() {
                   </span>
                 ))}
               </div>
-
+                <div className='overflow-auto flex flex-col gap-2'>
               {monthSegments.length > 0 && (
                 <div className="flex gap-2">
                   <span className="block w-9 flex-shrink-0 sm:w-11 md:w-20" />
@@ -669,6 +670,7 @@ export default function LifeSpanPage() {
                   </div>
                 ))}
               </div>
+              </div>
             </section>
 
             {selectedWeek && (
@@ -691,13 +693,9 @@ export default function LifeSpanPage() {
                         </p>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700"
-                      onClick={() => setSelectedWeek(null)}
-                    >
-                      Close
-                    </button>
+          
+                      <DialogCloseButton onClick={() => setSelectedWeek(null)}/>
+                   
                   </header>
 
                   <div className="mt-4 space-y-3">

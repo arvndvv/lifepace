@@ -49,7 +49,7 @@ const navItems = [
   { to: '/', label: 'Today', icon: <TodayIcon /> },
   { to: '/tasks', label: 'Tasks', icon: <TasksIcon /> },
   { to: '/lifespan', label: 'Life', icon: <LifeIcon /> },
-  { to: '/stats', label: 'Stats', icon: <StatsIcon /> },
+  // { to: '/stats', label: 'Stats', icon: <StatsIcon /> },
   { to: '/settings', label: 'Settings', icon: <SettingsIcon /> }
 ];
 
