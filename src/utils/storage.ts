@@ -28,7 +28,7 @@ const taskStatusSchema = z.union([
   z.literal('skipped')
 ]);
 
-const taskSchema: z.ZodType<Task, z.ZodTypeDef, Omit<Task, 'progressive'> & { progressive?: boolean }> = z.object({
+const taskSchema: z.ZodType<Task, z.ZodTypeDef, Omit<Task, 'progressive' | 'tags'> & { progressive?: boolean; tags?: string[] }> = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().optional(),
@@ -38,6 +38,7 @@ const taskSchema: z.ZodType<Task, z.ZodTypeDef, Omit<Task, 'progressive'> & { pr
   reminderAt: z.string().optional(),
   durationMinutes: z.number().nonnegative().optional(),
   progressive: z.boolean().default(true),
+  tags: z.array(z.string()).default([]),
   status: taskStatusSchema,
   createdAt: z.string(),
   updatedAt: z.string()
@@ -167,6 +168,7 @@ const appStateSchema = z.object({
   profile: profileSchema.optional(),
   tasks: z.array(taskSchema),
   preferences: preferencesSchema,
+  taskTags: z.array(z.string()).default([]),
   lifeReflections: rawLifeReflectionSchema,
   lifeWins: rawLifeWinsSchema.optional(),
   daySummaries: daySummariesSchema.optional(),
@@ -269,6 +271,7 @@ function normalizeAppState(state: z.infer<typeof appStateSchema>): AppState {
     profile: state.profile,
     tasks: state.tasks,
     preferences: normalizePreferences(state.preferences),
+    taskTags: (state.taskTags ?? []).map((tag) => tag.trim()).filter(Boolean),
     lifeReflections: normalizeLifeReflections(state.lifeReflections),
     lifeWins: normalizeLifeWins(state.lifeWins),
     daySummaries: normalizeDaySummaries(state.daySummaries),

@@ -1,9 +1,27 @@
 import { format, parseISO } from 'date-fns';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppData } from '../context/AppDataContext';
-import type { TaskStatus } from '../types';
+import type { Task, TaskStatus } from '../types';
 import { getDayProgress, getTodayISO } from '../utils/date';
-import { formatMinutes, getTotalAssignedMinutesForDate, MINUTES_PER_DAY } from '../utils/tasks';
+import {
+  formatMinutes,
+  getRemainingMinutesForDay,
+  getTaskDurationMinutes,
+  getTotalAssignedMinutesForDate,
+  MINUTES_PER_DAY
+} from '../utils/tasks';
+import {
+  TaskPlannerModal
+} from '../components/tasks/TaskPlannerModal';
+import { TaskDetailsDialog } from '../components/tasks/TaskDetailsDialog';
+import {
+  buildReminder,
+  canFitDuration,
+  createTaskDraft,
+  draftFromTask,
+  validateSchedule,
+  type TaskDraftForm
+} from '../utils/taskPlanner';
 
 function formatHoursMinutes(totalMinutes: number): string {
   const minutes = Math.max(0, Math.floor(totalMinutes));
@@ -20,7 +38,7 @@ function formatHoursMinutes(totalMinutes: number): string {
 
 export default function DashboardPage() {
   const {
-    state: { profile, tasks },
+    state: { profile, tasks, preferences, taskTags },
     actions
   } = useAppData();
 
@@ -29,6 +47,15 @@ export default function DashboardPage() {
     : { totalMinutes: 0, minutesElapsed: 0, minutesRemaining: 0, percentElapsed: 0 };
 
   const today = getTodayISO();
+  const defaultStartTime = preferences.defaultReminderTime ?? '';
+
+  const [viewTaskId, setViewTaskId] = useState<string | null>(null);
+  const [plannerModal, setPlannerModal] = useState<{ mode: 'edit'; taskId: string } | null>(null);
+  const [plannerDraft, setPlannerDraft] = useState<TaskDraftForm>(() => {
+    const base = createTaskDraft(defaultStartTime);
+    return { ...base, scheduledFor: today };
+  });
+  const [plannerError, setPlannerError] = useState<string | null>(null);
 
   const todayTasks = useMemo(
     () =>
@@ -40,6 +67,11 @@ export default function DashboardPage() {
           return aStart.localeCompare(bStart);
         }),
     [tasks, today]
+  );
+
+  const viewTask = useMemo(
+    () => tasks.find((task) => task.id === viewTaskId) ?? null,
+    [tasks, viewTaskId]
   );
 
   const todayTaskStats = useMemo(() => {
@@ -54,11 +86,78 @@ export default function DashboardPage() {
   }, [todayTasks]);
 
   const assignedMinutes = useMemo(
-    () => getTotalAssignedMinutesForDate(tasks, today),
+    () => getTotalAssignedMinutesForDate(tasks, today, undefined, { excludeCompleted: true }),
     [tasks, today]
   );
   const taskTimeLeftMinutes = Math.max(0, dayProgress.minutesRemaining - assignedMinutes);
   const overCapacity = assignedMinutes > dayProgress.minutesRemaining;
+
+  const plannerAllocation = useMemo(() => {
+    if (!plannerModal) {
+      return { assigned: 0, remaining: MINUTES_PER_DAY };
+    }
+    const scheduledFor = plannerDraft.scheduledFor || today;
+    return getRemainingMinutesForDay(tasks, scheduledFor, plannerModal.taskId, { excludeCompleted: true });
+  }, [plannerModal, plannerDraft.scheduledFor, tasks, today]);
+
+  const openEditModal = (task: Task) => {
+    setViewTaskId(null);
+    setPlannerDraft(draftFromTask(task, defaultStartTime));
+    setPlannerModal({ mode: 'edit', taskId: task.id });
+    setPlannerError(null);
+  };
+
+  const closePlannerModal = () => {
+    setPlannerModal(null);
+    setPlannerError(null);
+    setPlannerDraft(() => {
+      const base = createTaskDraft(defaultStartTime);
+      return { ...base, scheduledFor: today };
+    });
+  };
+
+  const handlePlannerSubmit = () => {
+    if (!plannerModal) {
+      return;
+    }
+    setPlannerError(null);
+
+    const trimmedTitle = plannerDraft.title.trim();
+    if (!trimmedTitle) {
+      setPlannerError('Give the task a name.');
+      return;
+    }
+
+    const scheduledFor = plannerDraft.scheduledFor;
+    const validation = validateSchedule(tasks, scheduledFor, plannerDraft, plannerModal.taskId);
+    if ('error' in validation) {
+      setPlannerError(validation.error);
+      return;
+    }
+
+    if (!canFitDuration(plannerAllocation.remaining, plannerDraft)) {
+      setPlannerError('Task duration exceeds your remaining time for that day. Adjust duration or reschedule.');
+      return;
+    }
+
+    const startAt = validation.startAt;
+    const deadlineAt = validation.deadlineAt;
+    const reminderAt = buildReminder(startAt, preferences.reminderLeadMinutes);
+
+    actions.updateTask(plannerModal.taskId, {
+      title: trimmedTitle,
+      description: plannerDraft.description.trim() || undefined,
+      scheduledFor,
+      startAt,
+      deadlineAt,
+      reminderAt,
+      durationMinutes: validation.durationMinutes,
+      progressive: plannerDraft.progressive,
+      tags: plannerDraft.tags
+    });
+
+    closePlannerModal();
+  };
 
   if (!profile) {
     return (
@@ -96,7 +195,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-            <span>Tasks assigned: {formatMinutes(assignedMinutes)}</span>
+            <span>Active workload: {formatMinutes(assignedMinutes)}</span>
             <span>Time left today: {formatMinutes(taskTimeLeftMinutes)}</span>
           </div>
           {assignedMinutes > MINUTES_PER_DAY && (
@@ -167,50 +266,102 @@ export default function DashboardPage() {
               Plan something meaningful for today.
             </li>
           )}
-          {todayTasks.map((task) => (
-            <li key={task.id} className="rounded-2xl bg-slate-800/70 p-4">
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium text-slate-100">{task.title}</h3>
-                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                      {task.status.replace('_', ' ')}
-                    </span>
-                    {task.progressive && (
-                      <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
-                        Progressive
-                      </span>
-                    )}
+          {todayTasks.map((task) => {
+            const durationMinutes = getTaskDurationMinutes(task);
+            return (
+              <li
+                key={task.id}
+                className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
+                onClick={() => setViewTaskId(task.id)}
+              >
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-medium text-slate-100">{task.title}</h3>
+                        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
+                          {task.status.replace('_', ' ')}
+                        </span>
+                        {task.progressive && (
+                          <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
+                            Progressive
+                          </span>
+                        )}
+                      </div>
+                      {task.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
+                          {task.tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
+                      <p className="text-xs text-slate-400">
+                        {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
+                        {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
+                        {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
+                        {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                      <button
+                        className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
+                        onClick={() => openEditModal(task)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
+                        onClick={() => actions.deleteTask(task.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
-                  <p className="text-xs text-slate-400">
-                    {task.startAt ? `Starts ${format(parseISO(task.startAt), 'p')}` : 'No start time'}
-                    {task.deadlineAt ? ` • Deadline ${format(parseISO(task.deadlineAt), 'p')}` : ''}
-                    {task.durationMinutes ? ` • Duration ${formatMinutes(task.durationMinutes)}` : ''}
-                    {task.reminderAt ? ` • Reminder ${format(parseISO(task.reminderAt), 'p')}` : ''}
-                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                    {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`rounded-full px-3 py-1 capitalize transition-colors ${
+                          task.status === status
+                            ? 'bg-[color:var(--accent-600)] text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                        onClick={() => actions.setTaskStatus(task.id, status)}
+                      >
+                        {status.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      className={`rounded-full px-3 py-1 capitalize transition-colors ${
-                        task.status === status
-                          ? 'bg-[color:var(--accent-600)] text-white'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
-                      onClick={() => actions.setTaskStatus(task.id, status)}
-                    >
-                      {status.replace('_', ' ')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </section>
+      <TaskPlannerModal
+        mode={plannerModal?.mode ?? 'edit'}
+        open={Boolean(plannerModal)}
+        draft={plannerDraft}
+        allocation={plannerAllocation}
+        preferences={preferences}
+        availableTags={taskTags}
+        error={plannerError}
+        onClose={closePlannerModal}
+        onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
+        onSubmit={handlePlannerSubmit}
+      />
+
+      <TaskDetailsDialog
+        task={viewTask}
+        open={Boolean(viewTask)}
+        onClose={() => setViewTaskId(null)}
+        onEdit={openEditModal}
+      />
+
     </div>
   );
 }

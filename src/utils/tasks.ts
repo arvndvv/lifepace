@@ -19,10 +19,13 @@ export function getTaskDurationMinutes(task: Task): number {
 export function getTotalAssignedMinutesForDate(
   tasks: Task[],
   dateISO: string,
-  excludeId?: string
+  excludeId?: string,
+  options?: { excludeCompleted?: boolean }
 ): number {
+  const excludeCompleted = options?.excludeCompleted ?? false;
   return tasks
     .filter((task) => task.scheduledFor === dateISO && task.id !== excludeId)
+    .filter((task) => (excludeCompleted ? task.status !== 'completed' : true))
     .reduce((total, task) => total + getTaskDurationMinutes(task), 0);
 }
 
@@ -42,9 +45,10 @@ export function formatMinutes(totalMinutes: number): string {
 export function getRemainingMinutesForDay(
   tasks: Task[],
   dateISO: string,
-  excludeId?: string
+  excludeId?: string,
+  options?: { excludeCompleted?: boolean }
 ): { assigned: number; remaining: number } {
-  const total = getTotalAssignedMinutesForDate(tasks, dateISO, excludeId);
+  const total = getTotalAssignedMinutesForDate(tasks, dateISO, excludeId, options);
   const capped = Math.min(MINUTES_PER_DAY, total);
   return { assigned: total, remaining: Math.max(0, MINUTES_PER_DAY - capped) };
 }

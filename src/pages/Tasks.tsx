@@ -14,244 +14,106 @@ import {
   startOfWeek
 } from 'date-fns';
 import { useAppData } from '../context/AppDataContext';
-import { Portal } from '../components/Portal';
 import type { Task, TaskStatus } from '../types';
+import { TaskPlannerModal } from '../components/tasks/TaskPlannerModal';
+import { TaskDetailsDialog } from '../components/tasks/TaskDetailsDialog';
 import { getTodayISO } from '../utils/date';
 import {
   formatMinutes,
   getRemainingMinutesForDay,
   getTotalAssignedMinutesForDate,
+  getTaskDurationMinutes,
   MINUTES_PER_DAY
 } from '../utils/tasks';
-
-interface TaskDraftForm {
-  title: string;
-  description: string;
-  scheduledFor: string;
-  mode: 'time' | 'duration';
-  startTime: string;
-  deadlineTime: string;
-  durationHours: number;
-  durationMinutes: number;
-  progressive: boolean;
-}
+import {
+  createTaskDraft,
+  draftFromTask,
+  validateSchedule,
+  canFitDuration,
+  buildReminder,
+  timeLabel,
+  type TaskDraftForm
+} from '../utils/taskPlanner';
 
 type TaskViewRange = 'today' | 'week' | 'month' | 'all';
 
-interface ValidationSuccess {
-  startAt?: string;
-  deadlineAt?: string;
-  durationMinutes?: number;
-}
-
 const PAGE_SIZE = 10;
 
-function combineDateTime(dateISO: string, time: string): string | undefined {
-  if (!time) {
-    return undefined;
-  }
-  const [hours, minutes] = time.split(':').map((part) => Number.parseInt(part, 10));
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return undefined;
-  }
-  const date = new Date(dateISO);
-  date.setHours(hours, minutes, 0, 0);
-  return date.toISOString();
+interface TaskAggregate {
+  total: number;
+  completed: number;
+  inProgress: number;
+  progressive: number;
+  assignedMinutes: number;
+  spentMinutes: number;
+  progressiveMinutes: number;
+  statusMinutes: Record<TaskStatus, number>;
 }
 
-function timeLabel(iso?: string): string | null {
-  if (!iso) {
-    return null;
-  }
-  return format(parseISO(iso), 'p');
-}
 
-function buildReminder(startAt: string | undefined, leadMinutes: number): string | undefined {
-  if (!startAt) {
-    return undefined;
-  }
-  if (!leadMinutes || leadMinutes <= 0) {
-    return startAt;
-  }
-  const start = new Date(startAt);
-  const reminder = new Date(start.getTime() - leadMinutes * 60 * 1000);
-  return reminder.toISOString();
-}
-
-function createDraft(defaultStartTime: string): TaskDraftForm {
-  return {
-    title: '',
-    description: '',
-    scheduledFor: getTodayISO(),
-    mode: 'time',
-    startTime: defaultStartTime ?? '',
-    deadlineTime: '',
-    durationHours: 1,
-    durationMinutes: 0,
-    progressive: true
-  };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  if (Number.isNaN(value)) {
-    return min;
-  }
-  return Math.min(Math.max(value, min), max);
-}
-
-interface TaskScheduleFieldsProps {
-  draft: TaskDraftForm;
-  onChange: (updates: Partial<TaskDraftForm>) => void;
-  allocation: { assigned: number; remaining: number };
-}
-
-function TaskScheduleFields({ draft, onChange, allocation }: TaskScheduleFieldsProps) {
-  const switchMode = (mode: 'time' | 'duration') => {
-    if (mode === draft.mode) {
-      return;
+function summarizeTasks(list: Task[]): TaskAggregate {
+  const initial: TaskAggregate = {
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    progressive: 0,
+    assignedMinutes: 0,
+    spentMinutes: 0,
+    progressiveMinutes: 0,
+    statusMinutes: {
+      planned: 0,
+      in_progress: 0,
+      completed: 0,
+      skipped: 0
     }
-    if (mode === 'duration') {
-      onChange({ mode, startTime: '', deadlineTime: '' });
-      return;
+  };
+
+  return list.reduce((acc, task) => {
+    acc.total += 1;
+    if (task.status === 'completed') {
+      acc.completed += 1;
+    } else if (task.status === 'in_progress') {
+      acc.inProgress += 1;
     }
-    onChange({ mode, durationHours: 1, durationMinutes: 0 });
-  };
-
-  const handleDurationChange = (field: 'durationHours' | 'durationMinutes', raw: string) => {
-    const parsed = Number.parseInt(raw, 10);
-    const nextValue = field === 'durationHours' ? clamp(parsed, 0, 24) : clamp(parsed, 0, 59);
-    onChange({ [field]: nextValue });
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2 text-xs font-medium text-slate-300">
-        <button
-          type="button"
-          className={`rounded-full px-3 py-1 transition-colors ${
-            draft.mode === 'time'
-              ? 'bg-[color:var(--accent-600)] text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-          onClick={() => switchMode('time')}
-        >
-          Schedule by time
-        </button>
-        <button
-          type="button"
-          className={`rounded-full px-3 py-1 transition-colors ${
-            draft.mode === 'duration'
-              ? 'bg-[color:var(--accent-600)] text-white'
-              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-          }`}
-          onClick={() => switchMode('duration')}
-        >
-          Assign duration
-        </button>
-      </div>
-
-      <label className="space-y-1 text-sm">
-        <span className="text-xs uppercase text-slate-400">Scheduled for</span>
-        <input
-          type="date"
-          className="w-full rounded-lg bg-slate-900 px-3 py-2"
-          value={draft.scheduledFor}
-          onChange={(event) => onChange({ scheduledFor: event.target.value })}
-          required
-        />
-      </label>
-
-      {draft.mode === 'time' ? (
-        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <label className="space-y-1 text-sm">
-            <span className="text-xs uppercase text-slate-400">Starts at (optional)</span>
-            <input
-              type="time"
-              className="w-full rounded-lg bg-slate-900 px-3 py-2"
-              value={draft.startTime}
-              onChange={(event) => onChange({ startTime: event.target.value })}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-xs uppercase text-slate-400">Deadline (optional)</span>
-            <input
-              type="time"
-              className="w-full rounded-lg bg-slate-900 px-3 py-2"
-              value={draft.deadlineTime}
-              onChange={(event) => onChange({ deadlineTime: event.target.value })}
-            />
-          </label>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          <label className="space-y-1 text-sm">
-            <span className="text-xs uppercase text-slate-400">Hours</span>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              className="w-full rounded-lg bg-slate-900 px-3 py-2"
-              value={draft.durationHours}
-              onChange={(event) => handleDurationChange('durationHours', event.target.value)}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-xs uppercase text-slate-400">Minutes</span>
-            <input
-              type="number"
-              min={0}
-              max={59}
-              className="w-full rounded-lg bg-slate-900 px-3 py-2"
-              value={draft.durationMinutes}
-              onChange={(event) => handleDurationChange('durationMinutes', event.target.value)}
-            />
-          </label>
-        </div>
-      )}
-
-      <p className="text-xs text-slate-500">
-        Time assigned for this day: {formatMinutes(allocation.assigned)} • Time left: {formatMinutes(allocation.remaining)}
-      </p>
-    </div>
-  );
-}
-
-function summarizeTasks(list: Task[]) {
-  return list.reduce(
-    (acc, task) => {
-      acc.total += 1;
-      if (task.status === 'completed') {
-        acc.completed += 1;
-      } else if (task.status === 'in_progress') {
-        acc.inProgress += 1;
-      }
-      if (task.progressive ?? true) {
-        acc.progressive += 1;
-      }
-      return acc;
-    },
-    { total: 0, completed: 0, inProgress: 0, progressive: 0 }
-  );
+    if (task.progressive ?? true) {
+      acc.progressive += 1;
+    }
+    const minutes = getTaskDurationMinutes(task);
+    acc.assignedMinutes += minutes;
+    if (task.status === 'completed') {
+      acc.spentMinutes += minutes;
+    }
+    acc.statusMinutes[task.status] += minutes;
+    if (task.progressive ?? true) {
+      acc.progressiveMinutes += minutes;
+    }
+    return acc;
+  }, initial);
 }
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function TasksPage() {
   const {
-    state: { tasks, preferences },
+    state: { tasks, preferences, taskTags },
     actions
   } = useAppData();
 
   const defaultStartTime = preferences.defaultReminderTime ?? '';
   const today = getTodayISO();
 
-  const [draft, setDraft] = useState<TaskDraftForm>(() => createDraft(defaultStartTime));
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<TaskDraftForm | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
+  const [plannerModal, setPlannerModal] = useState<{ mode: 'create' } | { mode: 'edit'; taskId: string } | null>(
+    null
+  );
+  const [plannerDraft, setPlannerDraft] = useState<TaskDraftForm>(() => {
+    const base = createTaskDraft(defaultStartTime);
+    return { ...base, scheduledFor: getTodayISO() };
+  });
+  const [plannerError, setPlannerError] = useState<string | null>(null);
+  const [viewTaskId, setViewTaskId] = useState<string | null>(null);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [pendingTagFilters, setPendingTagFilters] = useState<string[]>([]);
 
   const [rangeFilter, setRangeFilter] = useState<TaskViewRange>('today');
   const [searchTerm, setSearchTerm] = useState('');
@@ -259,9 +121,8 @@ export default function TasksPage() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [weekCursor, setWeekCursor] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
-
   useEffect(() => {
-    setDraft((prev) => ({
+    setPlannerDraft((prev) => ({
       ...prev,
       startTime: prev.mode === 'time' && !prev.startTime ? defaultStartTime : prev.startTime
     }));
@@ -278,6 +139,12 @@ export default function TasksPage() {
       setMonthCursor(startOfMonth(parseISO(selectedDate)));
     }
   }, [rangeFilter, selectedDate]);
+
+  useEffect(() => {
+    if (isFilterOpen) {
+      setPendingTagFilters(selectedTags);
+    }
+  }, [isFilterOpen, selectedTags]);
 
   const normalizedTasks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -300,9 +167,29 @@ export default function TasksPage() {
       });
   }, [tasks, searchTerm]);
 
+  const filteredTasks = useMemo(() => {
+    if (selectedTags.length === 0) {
+      return normalizedTasks;
+    }
+    return normalizedTasks.filter((task) =>
+      task.tags.some((tag) => selectedTags.includes(tag))
+    );
+  }, [normalizedTasks, selectedTags]);
+
+  const globalSummary = useMemo(() => summarizeTasks(filteredTasks), [filteredTasks]);
+
+  const selectedTagSummaries = useMemo(
+    () =>
+      selectedTags.map((tag) => ({
+        tag,
+        summary: summarizeTasks(normalizedTasks.filter((task) => task.tags.includes(tag)))
+      })),
+    [normalizedTasks, selectedTags]
+  );
+
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
-    normalizedTasks.forEach((task) => {
+    filteredTasks.forEach((task) => {
       const existing = map.get(task.scheduledFor);
       if (existing) {
         existing.push(task);
@@ -311,13 +198,13 @@ export default function TasksPage() {
       }
     });
     return map;
-  }, [normalizedTasks]);
+  }, [filteredTasks]);
 
   const selectedDayTasks = useMemo(() => tasksByDate.get(selectedDate) ?? [], [tasksByDate, selectedDate]);
 
   const selectedDaySummary = useMemo(() => summarizeTasks(selectedDayTasks), [selectedDayTasks]);
   const selectedDayAllocation = useMemo(
-    () => getRemainingMinutesForDay(tasks, selectedDate),
+    () => getRemainingMinutesForDay(tasks, selectedDate, undefined, { excludeCompleted: true }),
     [tasks, selectedDate]
   );
 
@@ -331,6 +218,8 @@ export default function TasksPage() {
     const startIndex = (page - 1) * PAGE_SIZE;
     return selectedDayTasks.slice(startIndex, startIndex + PAGE_SIZE);
   }, [selectedDayTasks, page]);
+
+  const viewTask = useMemo(() => tasks.find((t) => t.id === viewTaskId) || null, [tasks, viewTaskId]);
 
   const selectedDateLabel = useMemo(() => {
     try {
@@ -368,7 +257,7 @@ export default function TasksPage() {
 
   const yearsSummary = useMemo(() => {
     const yearMap = new Map<number, Map<number, Task[]>>();
-    normalizedTasks.forEach((task) => {
+    filteredTasks.forEach((task) => {
       const date = parseISO(task.scheduledFor);
       if (Number.isNaN(date.getTime())) {
         return;
@@ -396,7 +285,7 @@ export default function TasksPage() {
           summary: summarizeTasks(monthMap.get(month) ?? [])
         }))
       }));
-  }, [normalizedTasks]);
+  }, [filteredTasks]);
 
   const handleViewChange = (next: TaskViewRange) => {
     setRangeFilter(next);
@@ -422,122 +311,77 @@ export default function TasksPage() {
     setMonthCursor((prev) => addMonths(prev, offset));
   };
 
-  const resetDraft = () => setDraft(createDraft(defaultStartTime));
-
-  const validateSchedule = (
-    scheduledFor: string,
-    form: TaskDraftForm,
-    excludeId?: string
-  ): ValidationSuccess | { error: string } => {
-    if (!scheduledFor) {
-      return { error: 'Choose a day for this task.' };
-    }
-
-    if (form.mode === 'duration') {
-      const totalMinutes = form.durationHours * 60 + form.durationMinutes;
-      if (totalMinutes <= 0) {
-        return { error: 'Set a duration greater than zero.' };
-      }
-      const existingAssigned = getTotalAssignedMinutesForDate(tasks, scheduledFor, excludeId);
-      if (existingAssigned + totalMinutes > MINUTES_PER_DAY) {
-        const remaining = Math.max(0, MINUTES_PER_DAY - existingAssigned);
-        const suffix =
-          remaining === 0
-            ? 'This day is already fully allocated.'
-            : `Only ${formatMinutes(remaining)} left on this day.`;
-        return { error: suffix };
-      }
-      return { durationMinutes: totalMinutes };
-    }
-
-    const startAt = combineDateTime(scheduledFor, form.startTime);
-    const deadlineAt = form.deadlineTime ? combineDateTime(scheduledFor, form.deadlineTime) : undefined;
-
-    if (deadlineAt && !startAt) {
-      return { error: 'Set a start time before the deadline.' };
-    }
-
-    if (!startAt) {
-      return {};
-    }
-
-    const startMs = new Date(startAt).getTime();
-    if (Number.isNaN(startMs)) {
-      return { error: 'Start time is invalid.' };
-    }
-
-    let deadlineMs: number | undefined;
-    if (deadlineAt) {
-      deadlineMs = new Date(deadlineAt).getTime();
-      if (Number.isNaN(deadlineMs)) {
-        return { error: 'Deadline is invalid.' };
-      }
-      if (deadlineMs <= startMs) {
-        return { error: 'Deadline must be after the start time.' };
-      }
-      const existingAssigned = getTotalAssignedMinutesForDate(tasks, scheduledFor, excludeId);
-      const candidateMinutes = Math.floor((deadlineMs - startMs) / 60000);
-      if (existingAssigned + candidateMinutes > MINUTES_PER_DAY) {
-        const remaining = Math.max(0, MINUTES_PER_DAY - existingAssigned);
-        const suffix =
-          remaining === 0
-            ? 'This day is already fully allocated.'
-            : `Only ${formatMinutes(remaining)} left on this day.`;
-        return { error: suffix };
-      }
-    }
-
-    const conflictingTask = tasks.find((task) => {
-      if (task.id === excludeId || task.scheduledFor !== scheduledFor || !task.startAt) {
-        return false;
-      }
-      const existingStart = new Date(task.startAt).getTime();
-      const existingDeadline = task.deadlineAt ? new Date(task.deadlineAt).getTime() : undefined;
-
-      if (!Number.isFinite(existingStart)) {
-        return false;
-      }
-
-      if (existingStart === startMs) {
-        return true;
-      }
-
-      if (deadlineMs && existingDeadline) {
-        return startMs < existingDeadline && existingStart < deadlineMs;
-      }
-
-      if (deadlineMs && !existingDeadline) {
-        return existingStart > startMs && existingStart < deadlineMs;
-      }
-
-      if (!deadlineMs && existingDeadline) {
-        return startMs > existingStart && startMs < existingDeadline;
-      }
-
-      return false;
-    });
-
-    if (conflictingTask) {
-      const startLabel = timeLabel(conflictingTask.startAt) ?? 'that time';
-      const endLabel = conflictingTask.deadlineAt ? ` to ${timeLabel(conflictingTask.deadlineAt)}` : '';
-      return { error: `“${conflictingTask.title}” already occupies ${startLabel}${endLabel}.` };
-    }
-
-    return { startAt, deadlineAt };
+  const applyTagFilters = () => {
+    setSelectedTags(pendingTagFilters);
+    setIsFilterOpen(false);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormError(null);
+  const clearSelectedTags = () => {
+    setPendingTagFilters([]);
+    setSelectedTags([]);
+  };
 
-    if (!draft.title.trim()) {
-      setFormError('Give the task a name.');
+  const togglePendingTag = (tag: string) => {
+    setPendingTagFilters((prev) =>
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
+    );
+  };
+
+  const createPlannerDraft = (scheduledFor?: string) => {
+    const base = createTaskDraft(defaultStartTime);
+    return { ...base, scheduledFor: scheduledFor ?? getTodayISO() };
+  };
+
+  const openCreateModal = () => {
+    setPlannerDraft(createPlannerDraft(selectedDate));
+    setPlannerModal({ mode: 'create' });
+    setPlannerError(null);
+  };
+
+  const openEditModal = (task: Task) => {
+    setViewTaskId(null);
+    setPlannerDraft(draftFromTask(task, defaultStartTime));
+    setPlannerModal({ mode: 'edit', taskId: task.id });
+    setPlannerError(null);
+  };
+
+  const closePlannerModal = () => {
+    setPlannerModal(null);
+    setPlannerError(null);
+    setPlannerDraft(createPlannerDraft(selectedDate));
+  };
+
+  const plannerAllocation = useMemo(() => {
+    if (!plannerModal) {
+      return { assigned: 0, remaining: MINUTES_PER_DAY };
+    }
+    const scheduledFor = plannerDraft.scheduledFor || selectedDate;
+    const excludeId = plannerModal.mode === 'edit' ? plannerModal.taskId : undefined;
+    return getRemainingMinutesForDay(tasks, scheduledFor, excludeId, { excludeCompleted: true });
+  }, [plannerModal, plannerDraft.scheduledFor, tasks, selectedDate]);
+
+  const handlePlannerSubmit = () => {
+    if (!plannerModal) {
+      return;
+    }
+    setPlannerError(null);
+
+    const trimmedTitle = plannerDraft.title.trim();
+    if (!trimmedTitle) {
+      setPlannerError('Give the task a name.');
       return;
     }
 
-    const validation = validateSchedule(draft.scheduledFor, draft);
+    const scheduledFor = plannerDraft.scheduledFor;
+    const excludeId = plannerModal.mode === 'edit' ? plannerModal.taskId : undefined;
+    const validation = validateSchedule(tasks, scheduledFor, plannerDraft, excludeId);
     if ('error' in validation) {
-      setFormError(validation.error);
+      setPlannerError(validation.error);
+      return;
+    }
+
+    if (!canFitDuration(plannerAllocation.remaining, plannerDraft)) {
+      setPlannerError('Task duration exceeds your remaining time for that day. Adjust duration or reschedule.');
       return;
     }
 
@@ -545,89 +389,34 @@ export default function TasksPage() {
     const deadlineAt = validation.deadlineAt;
     const reminderAt = buildReminder(startAt, preferences.reminderLeadMinutes);
 
-    actions.addTask({
-      title: draft.title.trim(),
-      description: draft.description.trim() || undefined,
-      scheduledFor: draft.scheduledFor,
-      startAt,
-      deadlineAt,
-      reminderAt,
-      durationMinutes: validation.durationMinutes,
-      progressive: draft.progressive
-    });
+    if (plannerModal.mode === 'create') {
+      actions.addTask({
+        title: trimmedTitle,
+        description: plannerDraft.description.trim() || undefined,
+        scheduledFor,
+        startAt,
+        deadlineAt,
+        reminderAt,
+        durationMinutes: validation.durationMinutes,
+        progressive: plannerDraft.progressive,
+        tags: plannerDraft.tags
+      });
+    } else {
+      actions.updateTask(plannerModal.taskId, {
+        title: trimmedTitle,
+        description: plannerDraft.description.trim() || undefined,
+        scheduledFor,
+        startAt,
+        deadlineAt,
+        reminderAt,
+        durationMinutes: validation.durationMinutes,
+        progressive: plannerDraft.progressive,
+        tags: plannerDraft.tags
+      });
+    }
 
-    resetDraft();
-    setIsModalOpen(false);
+    closePlannerModal();
   };
-
-  const startEdit = (taskId: string) => {
-    const task = tasks.find((item) => item.id === taskId);
-    if (!task) {
-      return;
-    }
-    setEditingTaskId(task.id);
-    setEditError(null);
-    const isDuration = typeof task.durationMinutes === 'number' && task.durationMinutes > 0;
-    const totalMinutes = Math.max(0, task.durationMinutes ?? 0);
-    setEditDraft({
-      title: task.title,
-      description: task.description ?? '',
-      scheduledFor: task.scheduledFor,
-      mode: isDuration ? 'duration' : 'time',
-      startTime: isDuration ? '' : task.startAt ? format(parseISO(task.startAt), 'HH:mm') : defaultStartTime,
-      deadlineTime: isDuration
-        ? ''
-        : task.deadlineAt
-        ? format(parseISO(task.deadlineAt), 'HH:mm')
-        : '',
-      durationHours: isDuration ? Math.floor(totalMinutes / 60) : 1,
-      durationMinutes: isDuration ? totalMinutes % 60 : 0,
-      progressive: task.progressive ?? true
-    });
-  };
-
-  const submitEdit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingTaskId || !editDraft) {
-      return;
-    }
-    setEditError(null);
-
-    if (!editDraft.title.trim()) {
-      setEditError('Task name cannot be empty.');
-      return;
-    }
-
-    const validation = validateSchedule(editDraft.scheduledFor, editDraft, editingTaskId);
-    if ('error' in validation) {
-      setEditError(validation.error);
-      return;
-    }
-
-    const startAt = validation.startAt;
-    const deadlineAt = validation.deadlineAt;
-    const reminderAt = buildReminder(startAt, preferences.reminderLeadMinutes);
-
-    actions.updateTask(editingTaskId, {
-      title: editDraft.title.trim(),
-      description: editDraft.description.trim() || undefined,
-      scheduledFor: editDraft.scheduledFor,
-      startAt,
-      deadlineAt,
-      reminderAt,
-      durationMinutes: validation.durationMinutes,
-      progressive: editDraft.progressive
-    });
-    setEditingTaskId(null);
-    setEditDraft(null);
-  };
-
-  const allocationForDraft = getRemainingMinutesForDay(tasks, draft.scheduledFor);
-  const allocationForEdit =
-    editingTaskId && editDraft
-      ? getRemainingMinutesForDay(tasks, editDraft.scheduledFor, editingTaskId)
-      : null;
-
   const hasPrevPage = page > 1;
   const hasNextPage = page < totalPages;
 
@@ -654,23 +443,9 @@ export default function TasksPage() {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="search"
-            placeholder="Search tasks"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-slate-200"
-          />
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
-          >
-            Add task
-          </button>
-        </div>
       </div>
+
+
 
       {rangeFilter === 'today' && (
         <section className="space-y-4">
@@ -678,8 +453,9 @@ export default function TasksPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
               <p className="text-xs text-slate-400">
-                {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Time assigned{' '}
-                {formatMinutes(selectedDayAllocation.assigned)} • Time free {formatMinutes(selectedDayAllocation.remaining)}
+                {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Assigned{' '}
+                {formatMinutes(selectedDaySummary.assignedMinutes)} • Spent {formatMinutes(selectedDaySummary.spentMinutes)} • Active load{' '}
+                {formatMinutes(selectedDayAllocation.assigned)} • Time left {formatMinutes(selectedDayAllocation.remaining)}
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -700,21 +476,135 @@ export default function TasksPage() {
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
               <p className="text-[11px] uppercase text-slate-500">Planned</p>
               <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.planned)}</p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
               <p className="text-[11px] uppercase text-slate-500">In progress</p>
               <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.in_progress)}</p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
               <p className="text-[11px] uppercase text-slate-500">Completed</p>
               <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.completed)}</p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
               <p className="text-[11px] uppercase text-slate-500">Progressive</p>
               <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
+              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.progressiveMinutes)}</p>
             </div>
           </div>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[220px]">
+            <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
+            <input
+              type="search"
+              placeholder="Search by task or description"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
+            />
+          </div>
+          <div className="relative">
+            <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
+                selectedTags.length > 0
+                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
+                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
+              }`}
+            >
+              <span>Tag filters</span>
+              <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                {selectedTags.length} selected
+              </span>
+            </button>
+            {isFilterOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-4 shadow-xl">
+                <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
+                {taskTags.length === 0 ? (
+                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
+                ) : (
+                  <div className="space-y-2 text-sm text-slate-200">
+                    {taskTags.map((tag) => (
+                      <label key={tag} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/60">
+                        <span>{tag}</span>
+                        <input
+                          type="checkbox"
+                          checked={pendingTagFilters.includes(tag)}
+                          onChange={() => togglePendingTag(tag)}
+                          className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="rounded-lg px-3 py-1 text-slate-300 hover:text-rose-300"
+                    onClick={() => {
+                      clearSelectedTags();
+                      setIsFilterOpen(false);
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                    onClick={applyTagFilters}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
+            >
+              Add task
+            </button>
+          </div>
+        </div>
+        {selectedTags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedTags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+        <span>
+          Filtered total — Assigned {formatMinutes(globalSummary.assignedMinutes)} • Spent {formatMinutes(globalSummary.spentMinutes)} • Tasks {globalSummary.total}
+        </span>
+      </div>
+
+      {selectedTagSummaries.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+          <p className="mb-2 text-[11px] uppercase text-slate-500">Tag breakdown</p>
+          <div className="flex flex-wrap gap-4">
+            {selectedTagSummaries.map(({ tag, summary }) => (
+              <div key={tag} className="space-y-1">
+                <p className="font-medium text-slate-200">{tag}</p>
+                <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                <p>Spent {formatMinutes(summary.spentMinutes)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
           {selectedDayTasks.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
               No tasks planned for this day. Add one above.
@@ -723,79 +613,13 @@ export default function TasksPage() {
             <>
               <ul className="space-y-2">
                 {paginatedTasks.map((task) => {
-                  const isEditing = editingTaskId === task.id && editDraft;
-                  if (isEditing && editDraft) {
-                    return (
-                      <li key={task.id} className="space-y-2 rounded-2xl bg-slate-800/70 p-4">
-                        <form className="space-y-3 text-sm" onSubmit={submitEdit}>
-                          <input
-                            className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                            value={editDraft.title}
-                            onChange={(event) =>
-                              setEditDraft((prev) => prev && { ...prev, title: event.target.value })
-                            }
-                          />
-                          <textarea
-                            className="w-full rounded-lg bg-slate-900 px-3 py-2"
-                            value={editDraft.description}
-                            onChange={(event) =>
-                              setEditDraft((prev) => prev && { ...prev, description: event.target.value })
-                            }
-                            rows={3}
-                          />
-                          <TaskScheduleFields
-                            draft={editDraft}
-                            allocation={allocationForEdit ?? { assigned: 0, remaining: MINUTES_PER_DAY }}
-                            onChange={(updates) =>
-                              setEditDraft((prev) => (prev ? { ...prev, ...updates } : prev))
-                            }
-                          />
-                          <label className="flex items-start gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
-                            <input
-                              type="checkbox"
-                              checked={editDraft.progressive}
-                              onChange={(event) =>
-                                setEditDraft((prev) => prev && {
-                                  ...prev,
-                                  progressive: event.target.checked
-                                })
-                              }
-                              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900"
-                            />
-                            <span>
-                              Counts toward daily progress{' '}
-                              <span className="text-slate-500">
-                                (need at least {preferences.progressiveTasksPerDay} per day)
-                              </span>
-                            </span>
-                          </label>
-                          {editError && <p className="text-sm text-rose-300">{editError}</p>}
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              className="rounded-lg px-3 py-2 text-slate-300"
-                              onClick={() => {
-                                setEditingTaskId(null);
-                                setEditDraft(null);
-                                setEditError(null);
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </form>
-                      </li>
-                    );
-                  }
-
+                  const durationMinutes = getTaskDurationMinutes(task);
                   return (
-                    <li key={task.id} className="rounded-2xl bg-slate-800/70 p-4">
+                    <li
+                      key={task.id}
+                      className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
+                      onClick={() => setViewTaskId(task.id)}
+                    >
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="space-y-1">
@@ -810,18 +634,27 @@ export default function TasksPage() {
                                 </span>
                               )}
                             </div>
+                            {task.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
+                                {task.tags.map((tag) => (
+                                  <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             {task.description && <p className="text-sm text-slate-300">{task.description}</p>}
                             <p className="text-xs text-slate-400">
                               {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
-                              {task.deadlineAt ? ` • Ends ${timeLabel(task.deadlineAt)}` : ''}
-                              {task.durationMinutes ? ` • Duration ${formatMinutes(task.durationMinutes)}` : ''}
+                              {task.deadlineAt ? ` • Deadline ${timeLabel(task.deadlineAt)}` : ''}
+                              {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
                               {task.reminderAt ? ` • Reminder ${timeLabel(task.reminderAt)}` : ''}
                             </p>
                           </div>
-                          <div className="flex gap-2 text-xs">
+                          <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
                             <button
                               className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
-                              onClick={() => startEdit(task.id)}
+                              onClick={() => openEditModal(task)}
                             >
                               Edit
                             </button>
@@ -833,7 +666,7 @@ export default function TasksPage() {
                             </button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2 text-xs">
+                        <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
                           {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
                             <button
                               key={status}
@@ -939,6 +772,8 @@ export default function TasksPage() {
                     <p className="text-emerald-300">Completed {summary.completed}</p>
                     <p className="text-sky-300">In progress {summary.inProgress}</p>
                     <p className="text-amber-300">Progressive {summary.progressive}</p>
+                    <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                    <p>Spent {formatMinutes(summary.spentMinutes)}</p>
                   </div>
                 </button>
               );
@@ -1015,6 +850,8 @@ export default function TasksPage() {
                         <p className="text-emerald-300">C {summary.completed}</p>
                         <p className="text-sky-300">P {summary.inProgress}</p>
                         <p className="text-amber-300">G {summary.progressive}</p>
+                        <p>A {formatMinutes(summary.assignedMinutes)}</p>
+                        <p>S {formatMinutes(summary.spentMinutes)}</p>
                       </div>
                     )}
                   </button>
@@ -1064,6 +901,8 @@ export default function TasksPage() {
                           <p className="text-emerald-300">Completed {summary.completed}</p>
                           <p className="text-sky-300">In progress {summary.inProgress}</p>
                           <p className="text-amber-300">Progressive {summary.progressive}</p>
+                          <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                          <p>Spent {formatMinutes(summary.spentMinutes)}</p>
                         </div>
                       </button>
                     );
@@ -1075,86 +914,26 @@ export default function TasksPage() {
         </section>
       )}
 
-      {isModalOpen && (
-        <Portal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
-            <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-100">Plan a task</h2>
-                <button
-                  type="button"
-                  className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setFormError(null);
-                  resetDraft();
-                }}
-              >
-                Close
-              </button>
-              </div>
-              <form className="space-y-3" onSubmit={handleSubmit}>
-              <input
-                className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
-                placeholder="What will you do?"
-                value={draft.title}
-                onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
-                required
-              />
-              <textarea
-                className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100"
-                placeholder="Add an optional note"
-                value={draft.description}
-                onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
-                rows={3}
-              />
-              <TaskScheduleFields
-                draft={draft}
-                allocation={allocationForDraft}
-                onChange={(updates) => setDraft((prev) => ({ ...prev, ...updates }))}
-              />
-              <label className="flex items-start gap-2 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={draft.progressive}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, progressive: event.target.checked }))}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900"
-                />
-                <span>
-                  Counts toward daily progress{' '}
-                  <span className="text-slate-500">
-                    (need at least {preferences.progressiveTasksPerDay} per day)
-                  </span>
-                </span>
-              </label>
-              {formError && <p className="text-sm text-rose-300">{formError}</p>}
-              <p className="text-xs text-slate-400">
-                Reminders fire {preferences.reminderLeadMinutes} minutes before start when notifications are enabled.
-              </p>
-                <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg px-3 py-2 text-slate-300"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    setFormError(null);
-                    resetDraft();
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
-                >
-                  Add task
-                </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </Portal>
-      )}
+      
+      <TaskPlannerModal
+        mode={plannerModal?.mode ?? 'create'}
+        open={Boolean(plannerModal)}
+        draft={plannerDraft}
+        allocation={plannerAllocation}
+        preferences={preferences}
+        availableTags={taskTags}
+        error={plannerError}
+        onClose={closePlannerModal}
+        onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
+        onSubmit={handlePlannerSubmit}
+      />
+
+      <TaskDetailsDialog
+        task={viewTask}
+        open={Boolean(viewTask)}
+        onClose={() => setViewTaskId(null)}
+        onEdit={(task) => openEditModal(task)}
+      />
     </div>
   );
 }

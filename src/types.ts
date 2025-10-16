@@ -13,6 +13,7 @@ export interface Task {
   reminderAt?: string; // ISO datetime for reminders
   durationMinutes?: number; // Total minutes allocated when using duration-based planning
   progressive: boolean; // Marks this task as contributing towards day progress
+  tags: string[];
   status: TaskStatus;
   createdAt: string;
   updatedAt: string;
@@ -99,6 +100,7 @@ export interface AppState {
   profile?: UserProfile;
   tasks: Task[];
   preferences: Preferences;
+  taskTags: string[];
   lifeReflections: Record<string, ReflectionEntry>;
   lifeWins: Record<string, WeekWinEntry>;
   daySummaries: Record<string, DaySummary>;

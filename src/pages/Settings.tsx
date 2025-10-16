@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const profile = state.profile;
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
 
   const [form, setForm] = useState(() =>
     profile
@@ -391,6 +392,56 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="space-y-3 rounded-2xl bg-slate-800/70 p-4">
+        <h2 className="text-lg font-semibold">Task tags</h2>
+        <p className="text-sm text-slate-400">
+          Create shared labels for tasks. These appear in the planner and let you filter analytics by tag.
+        </p>
+        <form
+          className="flex flex-wrap items-center gap-2 text-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const trimmed = tagInput.trim();
+            if (!trimmed) {
+              return;
+            }
+            actions.addTaskTag(trimmed);
+            setTagInput('');
+          }}
+        >
+          <input
+            className="w-full max-w-xs rounded-lg bg-slate-900 px-3 py-2"
+            placeholder="Add a tag (e.g. Personal)"
+            value={tagInput}
+            onChange={(event) => setTagInput(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
+          >
+            Add tag
+          </button>
+        </form>
+        {state.taskTags.length === 0 ? (
+          <p className="text-sm text-slate-400">No tags yet. Add your first tag above.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2 text-sm">
+            {state.taskTags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-slate-200">
+                {tag}
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 hover:text-rose-300"
+                  onClick={() => actions.removeTaskTag(tag)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-3 rounded-2xl bg-slate-800/70 p-4">

@@ -25,6 +25,7 @@ interface TaskDraft {
   reminderAt?: string;
   durationMinutes?: number;
   progressive?: boolean;
+  tags?: string[];
 }
 
 interface ReminderDraft {
@@ -51,6 +52,8 @@ interface AppDataValue {
     deleteTask: (id: string) => void;
     setTaskStatus: (id: string, status: TaskStatus) => void;
     setPreferences: (updates: Partial<Preferences>) => void;
+    addTaskTag: (tag: string) => void;
+    removeTaskTag: (tag: string) => void;
     importState: (state: AppState) => void;
     setLifeReflection: (weekId: string, reflection: ReflectionTag, color?: string) => void;
     setWeekWinManual: (weekId: string, fulfilled: boolean) => void;
@@ -76,6 +79,8 @@ type AppAction =
   | { type: 'deleteTask'; id: string }
   | { type: 'setTaskStatus'; id: string; status: TaskStatus }
   | { type: 'setPreferences'; payload: Partial<Preferences> }
+  | { type: 'addTaskTag'; tag: string }
+  | { type: 'removeTaskTag'; tag: string }
   | { type: 'importState'; payload: AppState }
   | { type: 'setLifeReflection'; weekId: string; reflection: ReflectionTag; color?: string }
   | { type: 'setWeekWinManual'; weekId: string; fulfilled: boolean }
@@ -102,6 +107,7 @@ const defaultState: AppState = {
     progressiveDaysForWeekWin: 3,
     showLifeCalendar: true
   },
+  taskTags: [],
   lifeReflections: {},
   lifeWins: {},
   daySummaries: {},
@@ -189,6 +195,28 @@ function reducer(state: AppState, action: AppAction): AppState {
           task.id === action.id ? { ...task, status: action.status, updatedAt: new Date().toISOString() } : task
         )
       };
+    case 'addTaskTag': {
+      const tag = action.tag.trim();
+      if (!tag) {
+        return state;
+      }
+      if (state.taskTags.includes(tag)) {
+        return state;
+      }
+      return { ...state, taskTags: [...state.taskTags, tag].sort((a, b) => a.localeCompare(b)) };
+    }
+    case 'removeTaskTag': {
+      const nextTags = state.taskTags.filter((tag) => tag !== action.tag);
+      if (nextTags.length === state.taskTags.length) {
+        return state;
+      }
+      const nextTasks = state.tasks.map((task) =>
+        task.tags.includes(action.tag)
+          ? { ...task, tags: task.tags.filter((tag) => tag !== action.tag) }
+          : task
+      );
+      return { ...state, taskTags: nextTags, tasks: nextTasks };
+    }
     case 'setPreferences':
       return { ...state, preferences: { ...state.preferences, ...action.payload } };
     case 'setLifeReflection': {
@@ -311,6 +339,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       reminderAt: draft.reminderAt,
       durationMinutes: draft.durationMinutes,
       progressive: draft.progressive ?? true,
+      tags: draft.tags ?? [],
       status: 'planned',
       createdAt: now,
       updatedAt: now
@@ -332,6 +361,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const setPreferences = useCallback((updates: Partial<Preferences>) => {
     dispatch({ type: 'setPreferences', payload: updates });
+  }, []);
+
+  const addTaskTag = useCallback((tag: string) => {
+    dispatch({ type: 'addTaskTag', tag });
+  }, []);
+
+  const removeTaskTag = useCallback((tag: string) => {
+    dispatch({ type: 'removeTaskTag', tag });
   }, []);
 
   const importState = useCallback((data: AppState) => {
@@ -444,6 +481,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         deleteTask,
         setTaskStatus,
         setPreferences,
+        addTaskTag,
+        removeTaskTag,
         importState,
         setLifeReflection,
         setWeekWinManual,
@@ -471,6 +510,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       deleteTask,
       setTaskStatus,
       setPreferences,
+      addTaskTag,
+      removeTaskTag,
       importState,
       setLifeReflection,
       setWeekWinManual,
