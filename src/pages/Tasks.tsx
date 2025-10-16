@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDays,
   addMonths,
@@ -124,6 +124,7 @@ export default function TasksPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [pendingTagFilters, setPendingTagFilters] = useState<string[]>([]);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const filterDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [rangeFilter, setRangeFilter] = useState<TaskViewRange>('today');
   const [searchTerm, setSearchTerm] = useState('');
@@ -228,6 +229,35 @@ export default function TasksPage() {
     const startIndex = (page - 1) * PAGE_SIZE;
     return selectedDayTasks.slice(startIndex, startIndex + PAGE_SIZE);
   }, [selectedDayTasks, page]);
+
+  useEffect(() => {
+    if (isFilterOpen) {
+      setPendingTagFilters(selectedTags);
+    }
+  }, [isFilterOpen, selectedTags]);
+
+  useEffect(() => {
+    if (!isFilterOpen) {
+      return;
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isFilterOpen]);
 
   const viewTask = useMemo(() => tasks.find((t) => t.id === viewTaskId) || null, [tasks, viewTaskId]);
 
@@ -344,109 +374,116 @@ export default function TasksPage() {
               className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
             />
           </div>
-          <div className="relative">
+          <div className="min-w-[240px]">
             <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
-                selectedTags.length > 0
-                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
-                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
-              }`}
-            >
-              <span>Tag filters</span>
-              <span className="text-[11px] uppercase tracking-wide text-slate-400">
-                {selectedTags.length} selected
-              </span>
-            </button>
-            {isFilterOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-900/95 p-4 shadow-xl">
-                <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
-                {taskTags.length === 0 ? (
-                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
-                ) : (
-                  <div className="max-h-52 space-y-2 overflow-auto pr-1 text-sm text-slate-200">
-                    {taskTags.map((tag) => (
-                      <label
-                        key={tag}
-                        className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-800/60"
-                      >
-                        <span>{tag}</span>
-                        <input
-                          type="checkbox"
-                          checked={pendingTagFilters.includes(tag)}
-                          onChange={() => togglePendingTag(tag)}
-                          className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-                        />
-                      </label>
-                    ))}
+            <div className="relative flex flex-wrap items-center gap-2" ref={filterDropdownRef}>
+              {selectedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-200"
+                >
+                  {tag}
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen((prev) => !prev)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors ${
+                  isFilterOpen || selectedTags.length > 0
+                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
+                    : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
+                }`}
+              >
+                <span>Tag</span>
+                <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                  {selectedTags.length} selected
+                </span>
+              </button>
+              {selectedTags.length > 0 && (
+                <button
+                  type="button"
+                  className="text-[11px] text-slate-400 underline-offset-2 transition-colors hover:text-rose-300 hover:underline"
+                  onClick={() => {
+                    clearSelectedTags();
+                    setIsFilterOpen(false);
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            
+              {isFilterOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 shadow-xl">
+                  <div className="px-4 pt-4">
+                    <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
                   </div>
-                )}
-                <div className="mt-4 flex items-center justify-between gap-2 text-xs">
-                  <button
-                    type="button"
-                    className="rounded-lg px-3 py-1 text-slate-300 hover:text-rose-300"
-                    onClick={() => {
-                      clearSelectedTags();
-                      setIsFilterOpen(false);
-                    }}
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
-                    onClick={applyTagFilters}
-                  >
-                    Apply
-                  </button>
+                  {taskTags.length === 0 ? (
+                    <p className="px-4 pb-4 text-xs text-slate-500">No tags yet. Add some in Settings.</p>
+                  ) : (
+                    <ul className="max-h-52 overflow-auto px-2 pb-2 text-sm text-slate-200">
+                      {taskTags.map((tag) => {
+                        const active = pendingTagFilters.includes(tag);
+                        return (
+                          <li key={tag}>
+                            <button
+                              type="button"
+                              onClick={() => togglePendingTag(tag)}
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
+                                active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
+                              }`}
+                            >
+                              <span>{tag}</span>
+                              <span
+                                className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                                  active
+                                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
+                                    : 'border-slate-700 text-transparent'
+                                }`}
+                                aria-hidden="true"
+                              >
+                                ✓
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <div className="border-t border-slate-800/60 px-4 py-3 text-xs">
+                    <div className="flex items-center justify-between gap-2 text-slate-300">
+                      <button
+                        type="button"
+                        className="text-slate-400 transition-colors hover:text-rose-300"
+                        onClick={() => setPendingTagFilters([])}
+                      >
+                        Clear selection
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-full bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                        onClick={applyTagFilters}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            
           </div>
-          <div className="ml-auto">
-            <label className="mb-1 block text-xs uppercase text-slate-400">&nbsp;</label>
-            <button
+         
+        </div>
+        <button
               type="button"
               onClick={openCreateModal}
-              className="rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
+              className="w-full mt-5 rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
             >
               Add task
             </button>
-          </div>
-        </div>
-        {selectedTags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {selectedTags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-        <span>
-          Filtered total — Assigned {formatMinutes(globalSummary.assignedMinutes)} • Spent {formatMinutes(globalSummary.spentMinutes)} • Tasks {globalSummary.total}
-        </span>
-      </div>
-
-      {selectedTagSummaries.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
-          <p className="mb-2 text-[11px] uppercase text-slate-500">Tag breakdown</p>
-          <div className="flex flex-wrap gap-4">
-            {selectedTagSummaries.map(({ tag, summary }) => (
-              <div key={tag} className="space-y-1">
-                <p className="font-medium text-slate-200">{tag}</p>
-                <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
-                <p>Spent {formatMinutes(summary.spentMinutes)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+  
     </>
   );
 
@@ -586,7 +623,7 @@ export default function TasksPage() {
           ))}
         </div>
       </div>
-
+          
       <FiltersPanel />
 
 
@@ -600,7 +637,7 @@ export default function TasksPage() {
                 {formatMinutes(selectedDayAllocation.assigned)} • Time left {formatMinutes(selectedDayAllocation.remaining)}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            {selectedDate !== today && <div className="flex items-center gap-2 text-xs text-slate-400">
               <button
                 type="button"
                 className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
@@ -611,7 +648,7 @@ export default function TasksPage() {
               >
                 Jump to today
               </button>
-            </div>
+            </div>}
 
           <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
             <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">

@@ -3,6 +3,7 @@ import { formatMinutes, getTaskDurationMinutes } from '../../utils/tasks';
 import { timeLabel } from '../../utils/taskPlanner';
 import { MarkdownContent } from '../MarkdownContent';
 import { Portal } from '../Portal';
+import { DialogCloseButton } from '../DialogCloseButton';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -36,60 +37,81 @@ export function TaskDetailsDialog({ task, open, onClose, onEdit }: TaskDetailsDi
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur" onClick={onClose}>
-        <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl" onClick={(event) => event.stopPropagation()}>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-100">Task details</h2>
-            <div className="flex gap-2">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-3 py-6 backdrop-blur"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-[0_40px_80px_-30px_rgba(15,23,42,0.85)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-slate-100">{task.title}</h2>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-slate-800 px-2.5 py-1 uppercase tracking-wide text-slate-300">
+                  {task.status.replace('_', ' ')}
+                </span>
+                {task.progressive && (
+                  <span className="rounded-full bg-emerald-600/20 px-2.5 py-1 uppercase tracking-wide text-emerald-200">
+                    Progressive
+                  </span>
+                )}
+                {duration > 0 && (
+                  <span className="rounded-full bg-slate-800 px-2.5 py-1 text-slate-200">
+                    {formatMinutes(duration)} planned
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               {onEdit && (
                 <button
                   type="button"
-                  className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700"
+                  className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-slate-500"
                   onClick={() => onEdit(task)}
                 >
-                  Edit
+                  Edit task
                 </button>
               )}
-              <button
-                type="button"
-                className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
-                onClick={onClose}
-              >
-                Close
-              </button>
+              <DialogCloseButton onClick={onClose} />
             </div>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-medium text-slate-100">{task.title}</h3>
-              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                {task.status.replace('_', ' ')}
-              </span>
-              {task.progressive && (
-                <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
-                  Progressive
-                </span>
-              )}
+          </header>
+
+          <section className="space-y-4 text-sm text-slate-200">
+            <div className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300 sm:grid-cols-2">
+              <p>
+                <span className="font-semibold text-slate-100">Scheduled:</span> {task.scheduledFor}
+              </p>
+              {info.map((piece) => (
+                <p key={piece}>{piece}</p>
+              ))}
             </div>
-            {task.description ? (
-              <MarkdownContent content={task.description} className="space-y-3" />
-            ) : (
-              <p className="text-xs text-slate-500">No description provided.</p>
-            )}
+
             {task.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                {task.tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-200">
-                    {tag}
-                  </span>
-                ))}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-300">
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-slate-500">Tags</p>
+                <div className="flex flex-wrap gap-2">
+                  {task.tags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-slate-800 px-3 py-1">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-            <p className="text-xs text-slate-400">
-              Scheduled for {task.scheduledFor}
-              {info.length > 0 ? ` • ${info.join(' • ')}` : ''}
-            </p>
-          </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-slate-500">Description</p>
+              {task.description ? (
+                <MarkdownContent content={task.description} className="space-y-3" />
+              ) : (
+                <p className="text-xs text-slate-500">No description provided.</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </Portal>

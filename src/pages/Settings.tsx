@@ -357,15 +357,27 @@ export default function SettingsPage() {
               <p className="text-sm text-slate-200">Reminders</p>
               <p className="text-xs text-slate-400">Push-style notifications when tasks are due</p>
             </div>
-            <label className="inline-flex items-center gap-2">
-              <span className="text-xs text-slate-400">Off</span>
-              <input
-                type="checkbox"
-                checked={form.allowNotifications}
-                onChange={(event) => toggleNotifications(event.target.checked)}
-              />
-              <span className="text-xs text-slate-400">On</span>
-            </label>
+            <div className="inline-flex items-center gap-2">
+              <span className="text-xs text-slate-500">Off</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.allowNotifications}
+                className={`flex h-6 w-12 items-center rounded-full border px-1 transition-colors ${
+                  form.allowNotifications
+                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/40'
+                    : 'border-slate-700 bg-slate-800'
+                }`}
+                onClick={() => toggleNotifications(!form.allowNotifications)}
+              >
+                <span
+                  className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                    form.allowNotifications ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-xs text-slate-500">On</span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-slate-900/60 px-3 py-2">
@@ -373,17 +385,32 @@ export default function SettingsPage() {
               <p className="text-sm text-slate-200">Weeks-of-life timeline</p>
               <p className="text-xs text-slate-400">Toggle the timeline in the Life view.</p>
             </div>
-            <label className="inline-flex items-center gap-2">
-              <span className="text-xs text-slate-400">Off</span>
-              <input
-                type="checkbox"
-                checked={preferencesForm.showLifeCalendar}
-                onChange={(event) =>
-                  setPreferencesForm((prev) => ({ ...prev, showLifeCalendar: event.target.checked }))
+            <div className="inline-flex items-center gap-2">
+              <span className="text-xs text-slate-500">Off</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={preferencesForm.showLifeCalendar}
+                className={`flex h-6 w-12 items-center rounded-full border px-1 transition-colors ${
+                  preferencesForm.showLifeCalendar
+                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/40'
+                    : 'border-slate-700 bg-slate-800'
+                }`}
+                onClick={() =>
+                  setPreferencesForm((prev) => ({
+                    ...prev,
+                    showLifeCalendar: !prev.showLifeCalendar
+                  }))
                 }
-              />
-              <span className="text-xs text-slate-400">On</span>
-            </label>
+              >
+                <span
+                  className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                    preferencesForm.showLifeCalendar ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className="text-xs text-slate-500">On</span>
+            </div>
           </div>
 
           <div className="flex justify-end">
