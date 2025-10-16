@@ -1,6 +1,5 @@
 import { Suspense, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import AppShell from './components/layout/AppShell';
 import OnboardingModal from './components/onboarding/OnboardingModal';
 import ReminderWatcher from './components/ReminderWatcher';
@@ -12,11 +11,66 @@ import StatsPage from './pages/Stats';
 import SettingsPage from './pages/Settings';
 
 export default function App() {
-  useRegisterSW({ immediate: true });
   const {
     loading,
     state: { preferences }
   } = useAppData();
+
+  useEffect(() => {
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+      const controller = new AbortController();
+      const register = async () => {
+        try {
+          const base = import.meta.env.BASE_URL ?? '/';
+          const baseURL = new URL(base, window.location.origin);
+          const swURL = new URL('service-worker.js', baseURL);
+          const registration = await navigator.serviceWorker.register(swURL.href, {
+            scope: baseURL.pathname
+          });
+
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener(
+            'controllerchange',
+            () => {
+              if (refreshing) {
+                return;
+              }
+              refreshing = true;
+              window.location.reload();
+            },
+            { signal: controller.signal }
+          );
+
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          registration.addEventListener(
+            'updatefound',
+            () => {
+              const { installing } = registration;
+              if (!installing) {
+                return;
+              }
+              installing.addEventListener('statechange', () => {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                  installing.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            },
+            { signal: controller.signal }
+          );
+        } catch (error) {
+          console.error('Service worker registration failed', error);
+        }
+      };
+
+      register();
+
+      return () => controller.abort();
+    }
+    return undefined;
+  }, []);
 
   useEffect(() => {
     const accent = preferences.accentTheme ?? 'aurora';

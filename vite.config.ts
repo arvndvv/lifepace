@@ -1,58 +1,27 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
-import { VitePWA } from 'vite-plugin-pwa';
 
-// Change this to your repository name:
-const repo = 'lifepace'; // e.g., 'lifepace' if your repo is github.com/<you>/lifepace
+// If you deploy to GitHub Pages project site, set this to your repository name.
+// Otherwise leave it empty so the app serves from the root path.
+const repo = process.env.VITE_PUBLISH_BASE ?? '';
 
-export default defineConfig(({ mode }) => {
-  const isProd = mode === 'production';
-  const plugins = [react()];
-
-  if (isProd) {
-    plugins.push(
-      VitePWA({
-        minify: false,
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg'],
-        manifest: {
-          name: 'LifePace',
-          short_name: 'LifePace',
-          description: 'Plan your days and track your life progress in one place.',
-          theme_color: '#0f172a',
-          background_color: '#0f172a',
-          display: 'standalone',
-          start_url: `/${repo}/`, // match base so the PWA opens properly from Pages
-          icons: [
-            { src: 'icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-            { src: 'icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' }
-          ]
-        },
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
-          navigateFallback: `/${repo}/index.html` // for Pages base path (adjust to `/${repo}/index.html`)
-        }
-      })
-    );
+const normaliseBase = (value: string): string => {
+  if (!value) {
+    return '';
   }
+  return value.replace(/^\/+|\/+$/g, '');
+};
 
-  const resolve = {
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json']
-  };
-
-  if (!isProd) {
-    Object.assign(resolve, {
-      alias: {
-        'virtual:pwa-register/react': '/src/utils/mock-sw-register.ts'
-      }
-    });
-  }
+export default defineConfig(({ command }) => {
+  const basePath = normaliseBase(repo);
+  const resolvedBase = basePath ? `/${basePath}/` : '/';
 
   return {
-    // If this is a project page, set base to `/<repo>/`. If it’s a user/organization page, use '/'.
-    base: isProd ? `/${repo}/` : '/',
-    plugins,
-    resolve,
+    base: command === 'build' ? resolvedBase : '/',
+    plugins: [react()],
+    resolve: {
+      extensions: ['.tsx', '.ts', '.jsx', '.js', '.json']
+    },
     server: { host: true }
   };
 });
