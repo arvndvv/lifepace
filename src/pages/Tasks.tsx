@@ -132,6 +132,7 @@ export default function TasksPage() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [weekCursor, setWeekCursor] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
+  const [yearCursor, setYearCursor] = useState(() => getYear(new Date()));
   useEffect(() => {
     setPlannerDraft((prev) => ({
       ...prev,
@@ -313,6 +314,39 @@ export default function TasksPage() {
       .map(([year, list]) => ({ year, summary: summarizeTasks(list) }));
   }, [filteredTasks]);
 
+  const availableYears = useMemo(() => yearsSummary.map(({ year }) => year), [yearsSummary]);
+  const currentYear = getYear(new Date());
+
+  useEffect(() => {
+    if (availableYears.length === 0) {
+      if (yearCursor !== currentYear) {
+        setYearCursor(currentYear);
+      }
+      return;
+    }
+
+    if (!availableYears.includes(yearCursor)) {
+      if (availableYears.includes(currentYear)) {
+        setYearCursor(currentYear);
+      } else {
+        setYearCursor(availableYears[availableYears.length - 1]);
+      }
+    }
+  }, [availableYears, yearCursor, currentYear]);
+
+  const activeYearSummary = useMemo(
+    () => yearsSummary.find(({ year }) => year === yearCursor) ?? null,
+    [yearsSummary, yearCursor]
+  );
+
+  const currentYearIndex = availableYears.indexOf(yearCursor);
+  const previousYearWithData = currentYearIndex > 0 ? availableYears[currentYearIndex - 1] : null;
+  const nextYearWithData =
+    currentYearIndex >= 0 && currentYearIndex < availableYears.length - 1
+      ? availableYears[currentYearIndex + 1]
+      : null;
+  const showCurrentYearButton = yearCursor !== currentYear && availableYears.includes(currentYear);
+
   const handleViewChange = (next: TaskViewRange) => {
     setRangeFilter(next);
     if (next === 'today') {
@@ -338,6 +372,7 @@ export default function TasksPage() {
   };
 
   const goToYear = (year: number) => {
+    setYearCursor(year);
     const target = startOfMonth(new Date(year, 0, 1));
     setMonthCursor(target);
     setSelectedDate(format(target, 'yyyy-MM-dd'));
@@ -944,36 +979,99 @@ export default function TasksPage() {
 
       {rangeFilter === 'all' && (
         <section className="space-y-4">
+          <div>
+            <div className='flex items-center justify-between gap-3'>
+              <div>
+                      <span className="text-[11px] uppercase tracking-wide text-slate-400">Selected year</span>
+                      <h3 className="text-2xl font-semibold text-slate-100">{activeYearSummary ? activeYearSummary.year : "No-Record"}</h3>
+              </div>
+              {activeYearSummary && (<button
+                      type="button"
+                      className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-[color:var(--accent-500)] hover:text-white"
+                      onClick={() => goToYear(activeYearSummary.year)}
+                    >
+                      View monthly breakdown
+                    </button>)}
+                    </div>
+            <p className="text-xs text-slate-400">Navigate between years to compare your progress.</p>
+          </div>
           {yearsSummary.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
               No tasks recorded yet. Start planning to see yearly stats.
             </p>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {yearsSummary.map(({ year, summary }) => (
-                <button
-                  key={year}
-                  type="button"
-                  onClick={() => goToYear(year)}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-left transition-colors hover:border-[color:var(--accent-500)]/70"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <h3 className="text-lg font-semibold text-slate-100">{year}</h3>
-                    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide">
-                      View months <span>▸</span>
-                    </span>
+            <>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                {previousYearWithData !== null && (
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                    onClick={() => setYearCursor(previousYearWithData)}
+                  >
+                    Previous
+                  </button>
+                )}
+                {showCurrentYearButton && (
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                    onClick={() => setYearCursor(currentYear)}
+                  >
+                    This year
+                  </button>
+                )}
+                {nextYearWithData !== null && (
+                  <button
+                    type="button"
+                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                    onClick={() => setYearCursor(nextYearWithData)}
+                  >
+                    Next
+                  </button>
+                )}
+              </div>
+              
+              {activeYearSummary ? (
+                <div className="space-y-4 rounded-2xl ">
+                
+                  <div className="grid gap-3 text-xs text-slate-300 grid-cols-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Total</p>
+                      <p className="mt-1 text-lg font-semibold text-slate-100">{activeYearSummary.summary.total}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Completed</p>
+                      <p className="mt-1 text-lg font-semibold text-emerald-300">{activeYearSummary.summary.completed}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Inprogress</p>
+                      <p className="mt-1 text-lg font-semibold text-sky-300">{activeYearSummary.summary.inProgress}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Progressive</p>
+                      <p className="mt-1 text-lg font-semibold text-amber-300">{activeYearSummary.summary.progressive}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Assigned time</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-100">
+                        {formatMinutes(activeYearSummary.summary.assignedMinutes)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                      <p className="text-[11px] uppercase text-slate-500">Spent time</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-100">
+                        {formatMinutes(activeYearSummary.summary.spentMinutes)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-3 space-y-1 text-[11px] text-slate-300">
-                    <p>Total {summary.total}</p>
-                    <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
-                    <p>Spent {formatMinutes(summary.spentMinutes)}</p>
-                    <p className="text-emerald-300">Completed {summary.completed}</p>
-                    <p className="text-sky-300">In progress {summary.inProgress}</p>
-                    <p className="text-amber-300">Progressive {summary.progressive}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                  No task stats available for {yearCursor}.
+                </p>
+              )}
+            </>
           )}
         </section>
       )}
