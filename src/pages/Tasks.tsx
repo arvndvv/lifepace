@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDays,
   addMonths,
@@ -126,6 +126,7 @@ export default function TasksPage() {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const filterDropdownRef = useRef<HTMLDivElement | null>(null);
   const quickTagDropdownRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [quickTaskTitle, setQuickTaskTitle] = useState('');
   const [quickTaskTags, setQuickTaskTags] = useState<string[]>([]);
   const [isQuickTagOpen, setIsQuickTagOpen] = useState(false);
@@ -422,7 +423,58 @@ export default function TasksPage() {
     );
   };
 
+  const handleSearchInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target;
+    setSearchTerm(value);
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  };
+
+  const weekSummaryAggregate = useMemo(() => {
+    if (weekDays.length === 0) {
+      return summarizeTasks([]);
+    }
+    const isoSet = new Set(weekDays.map((date) => format(date, 'yyyy-MM-dd')));
+    const list = filteredTasks.filter((task) => isoSet.has(task.scheduledFor));
+    return summarizeTasks(list);
+  }, [filteredTasks, weekDays]);
+
+  const monthSummaryAggregate = useMemo(() => {
+    const start = format(startOfMonth(monthCursor), 'yyyy-MM-dd');
+    const end = format(endOfMonth(monthCursor), 'yyyy-MM-dd');
+    const list = filteredTasks.filter(
+      (task) => task.scheduledFor >= start && task.scheduledFor <= end
+    );
+    return summarizeTasks(list);
+  }, [filteredTasks, monthCursor]);
+
   const quickAddDisabled = quickTaskTitle.trim().length === 0 && quickTaskTags.length === 0;
+
+  const SummaryBadges = ({ summary }: { summary: TaskAggregate }) => (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+        <span className="font-semibold text-slate-100">{summary.total}</span>
+        <span className="uppercase tracking-wide text-slate-500">tasks</span>
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+        <span className="font-semibold text-sky-300">{summary.inProgress}</span>
+        <span className="uppercase tracking-wide text-slate-500">in progress</span>
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+        <span className="font-semibold text-emerald-300">{summary.completed}</span>
+        <span className="uppercase tracking-wide text-slate-500">done</span>
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+        <span className="font-semibold text-slate-100">{formatMinutes(summary.assignedMinutes)}</span>
+        <span className="uppercase tracking-wide text-slate-500">assigned</span>
+      </span>
+      <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+        <span className="font-semibold text-slate-100">{formatMinutes(summary.spentMinutes)}</span>
+        <span className="uppercase tracking-wide text-slate-500">spent</span>
+      </span>
+    </div>
+  );
 
   const FiltersPanel = () => (
     <>
@@ -534,18 +586,21 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <div className="space-y-3 ">
+      <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
+            <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
             <input
               type="search"
               placeholder="Search by task or description"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={handleSearchInputChange}
+              ref={searchInputRef}
               className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
             />
           </div>
           <div className="relative" ref={filterDropdownRef}>
+            <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
             <button
               type="button"
               onClick={() => setIsFilterOpen((prev) => !prev)}
@@ -996,9 +1051,10 @@ export default function TasksPage() {
 
       {rangeFilter === 'week' && (
         <section className="space-y-4">
-                      <div>
+            <div>
               <h2 className="text-lg font-semibold text-slate-200">Week of {format(weekCursor, 'MMM d')}</h2>
               <p className="text-xs text-slate-400">Select a day to jump into the detailed view.</p>
+              <SummaryBadges summary={weekSummaryAggregate} />
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <button
@@ -1060,9 +1116,10 @@ export default function TasksPage() {
 
       {rangeFilter === 'month' && (
         <section className="space-y-4">
-                      <div>
+            <div>
               <h2 className="text-lg font-semibold text-slate-200">{format(monthCursor, 'MMMM yyyy')}</h2>
               <p className="text-xs text-slate-400">Click a day to open it in the Today view.</p>
+              <SummaryBadges summary={monthSummaryAggregate} />
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <button
