@@ -125,6 +125,10 @@ export default function TasksPage() {
   const [pendingTagFilters, setPendingTagFilters] = useState<string[]>([]);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+  const quickTagDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [quickTaskTitle, setQuickTaskTitle] = useState('');
+  const [quickTaskTags, setQuickTaskTags] = useState<string[]>([]);
+  const [isQuickTagOpen, setIsQuickTagOpen] = useState(false);
 
   const [rangeFilter, setRangeFilter] = useState<TaskViewRange>('today');
   const [searchTerm, setSearchTerm] = useState('');
@@ -259,6 +263,29 @@ export default function TasksPage() {
       document.removeEventListener('keydown', handleKey);
     };
   }, [isFilterOpen]);
+
+  useEffect(() => {
+    if (!isQuickTagOpen) {
+      return;
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (quickTagDropdownRef.current && !quickTagDropdownRef.current.contains(event.target as Node)) {
+        setIsQuickTagOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsQuickTagOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isQuickTagOpen]);
 
   const viewTask = useMemo(() => tasks.find((t) => t.id === viewTaskId) || null, [tasks, viewTaskId]);
 
@@ -395,12 +422,121 @@ export default function TasksPage() {
     );
   };
 
+  const quickAddDisabled = quickTaskTitle.trim().length === 0 && quickTaskTags.length === 0;
+
   const FiltersPanel = () => (
     <>
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <label className="flex-1 space-y-1">
+            <span className="text-xs uppercase text-slate-400">Task name</span>
+            <input
+              type="text"
+              placeholder="What will you work on?"
+              value={quickTaskTitle}
+              onChange={(event) => setQuickTaskTitle(event.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
+            />
+          </label>
+          <div className="relative flex-1 md:w-64" ref={quickTagDropdownRef} onClick={() => setIsQuickTagOpen((prev) => !prev)}>
+            <span className="mb-1 block text-xs uppercase text-slate-400">Tags (optional)</span>
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2">
+              {quickTaskTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-200"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    className="text-slate-400 transition-colors hover:text-rose-300"
+                    onClick={() => toggleQuickTag(tag)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                className="text-xs text-slate-300 transition-colors hover:text-white"
+                
+              >
+                {isQuickTagOpen ? 'Hide tags' : 'Select tags'}
+              </button>
+              {quickTaskTags.length > 0 && (
+                <button
+                  type="button"
+                  className="text-[11px] text-slate-400 underline-offset-2 transition-colors hover:text-rose-300 hover:underline"
+                  onClick={clearQuickTags}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {isQuickTagOpen && (
+              <div className="absolute z-30 mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900/95 p-3 shadow-xl">
+                {taskTags.length === 0 ? (
+                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
+                ) : (
+                  <div className="max-h-56 space-y-1 overflow-auto text-sm text-slate-200">
+                    {taskTags.map((tag) => {
+                      const active = quickTaskTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleQuickTag(tag)}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
+                            active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
+                          }`}
+                        >
+                          <span>{tag}</span>
+                          <span
+                            className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                              active
+                                ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
+                                : 'border-slate-700 text-transparent'
+                            }`}
+                            aria-hidden="true"
+                          >
+                            ✓
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex w-full gap-2 md:w-auto">
+            <button
+              type="button"
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors md:flex-none ${
+                quickAddDisabled
+                  ? 'cursor-not-allowed bg-slate-800 text-slate-500'
+                  : 'bg-[color:var(--accent-600)] text-white hover:bg-[color:var(--accent-500)]'
+              }`}
+              onClick={handleQuickAddTask}
+              disabled={quickAddDisabled}
+            >
+              Add task
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-slate-500"
+              onClick={() => openCreateModal()}
+            >
+              Open planner
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 ">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
             <input
               type="search"
               placeholder="Search by task or description"
@@ -409,116 +545,115 @@ export default function TasksPage() {
               className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
             />
           </div>
-          <div className="min-w-[240px]">
-            <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
-            <div className="relative flex flex-wrap items-center gap-2" ref={filterDropdownRef}>
-              {selectedTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-200"
-                >
-                  {tag}
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={() => setIsFilterOpen((prev) => !prev)}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-colors ${
-                  isFilterOpen || selectedTags.length > 0
-                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 text-slate-100'
-                    : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
-                }`}
-              >
-                <span>Tag</span>
-                <span className="text-[11px] uppercase tracking-wide text-slate-400">
-                  {selectedTags.length} selected
-                </span>
-              </button>
-              {selectedTags.length > 0 && (
-                <button
-                  type="button"
-                  className="text-[11px] text-slate-400 underline-offset-2 transition-colors hover:text-rose-300 hover:underline"
-                  onClick={() => {
-                    clearSelectedTags();
-                    setIsFilterOpen(false);
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            
-              {isFilterOpen && (
-                <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 shadow-xl">
-                  <div className="px-4 pt-4">
-                    <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
-                  </div>
-                  {taskTags.length === 0 ? (
-                    <p className="px-4 pb-4 text-xs text-slate-500">No tags yet. Add some in Settings.</p>
-                  ) : (
-                    <ul className="max-h-52 overflow-auto px-2 pb-2 text-sm text-slate-200">
-                      {taskTags.map((tag) => {
-                        const active = pendingTagFilters.includes(tag);
-                        return (
-                          <li key={tag}>
-                            <button
-                              type="button"
-                              onClick={() => togglePendingTag(tag)}
-                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                                active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
-                              }`}
-                            >
-                              <span>{tag}</span>
-                              <span
-                                className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                  active
-                                    ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
-                                    : 'border-slate-700 text-transparent'
-                                }`}
-                                aria-hidden="true"
-                              >
-                                ✓
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                  <div className="border-t border-slate-800/60 px-4 py-3 text-xs">
-                    <div className="flex items-center justify-between gap-2 text-slate-300">
-                      <button
-                        type="button"
-                        className="text-slate-400 transition-colors hover:text-rose-300"
-                        onClick={() => setPendingTagFilters([])}
-                      >
-                        Clear selection
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-full bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
-                        onClick={applyTagFilters}
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-          </div>
-         
-        </div>
-        <button
+          <div className="relative" ref={filterDropdownRef}>
+            <button
               type="button"
-              onClick={openCreateModal}
-              className="w-full mt-5 rounded-xl bg-[color:var(--accent-600)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className={`relative flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
+                isFilterOpen || selectedTags.length > 0
+                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/15 text-slate-100'
+                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
+              }`}
             >
-              Add task
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M4 5h16M6 12h12M10 19h4" />
+              </svg>
+              <span className="text-xs font-semibold uppercase tracking-wide">Filters</span>
+              {selectedTags.length > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[color:var(--accent-500)] px-1 text-[10px] font-semibold text-slate-900">
+                  {selectedTags.length}
+                </span>
+              )}
             </button>
+            {isFilterOpen && (
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900/95 p-4 shadow-xl">
+                <p className="mb-3 text-xs text-slate-400">Choose tags to focus this view.</p>
+                {taskTags.length === 0 ? (
+                  <p className="text-xs text-slate-500">No tags yet. Add some in Settings.</p>
+                ) : (
+                  <ul className="max-h-52 space-y-1 overflow-auto pr-1 text-sm text-slate-200">
+                    {taskTags.map((tag) => {
+                      const active = pendingTagFilters.includes(tag);
+                      return (
+                        <li key={tag}>
+                          <button
+                            type="button"
+                            onClick={() => togglePendingTag(tag)}
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
+                              active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
+                            }`}
+                          >
+                            <span>{tag}</span>
+                            <span
+                              className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                                active
+                                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
+                                  : 'border-slate-700 text-transparent'
+                              }`}
+                              aria-hidden="true"
+                            >
+                              ✓
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-slate-400 transition-colors hover:text-rose-300"
+                    onClick={() => {
+                      clearSelectedTags();
+                      setIsFilterOpen(false);
+                    }}
+                  >
+                    Clear all
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full bg-[color:var(--accent-600)] px-4 py-1 font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                    onClick={applyTagFilters}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {selectedTags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200"
+              >
+                {tag}
+              </span>
+            ))}
+            <button
+              type="button"
+              className="text-xs text-slate-400 transition-colors hover:text-rose-300"
+              onClick={clearSelectedTags}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
       </div>
 
-  
+      
     </>
   );
 
@@ -530,10 +665,33 @@ export default function TasksPage() {
     return { ...base, scheduledFor: scheduledFor ?? getTodayISO() };
   };
 
-  const openCreateModal = () => {
-    setPlannerDraft(createPlannerDraft(selectedDate));
+  const toggleQuickTag = (tag: string) => {
+    setQuickTaskTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]));
+  };
+
+  const clearQuickTags = (e:any) => {e.stopPropagation();setQuickTaskTags([])};
+
+  const openCreateModal = (prefill?: Partial<TaskDraftForm>) => {
+    const baseDraft = createPlannerDraft(selectedDate);
+    const nextDraft = prefill ? { ...baseDraft, ...prefill } : baseDraft;
+    setPlannerDraft(nextDraft);
     setPlannerModal({ mode: 'create' });
     setPlannerError(null);
+  };
+
+  const handleQuickAddTask = () => {
+    const overrides: Partial<TaskDraftForm> = {};
+    const title = quickTaskTitle.trim();
+    if (title) {
+      overrides.title = title;
+    }
+    if (quickTaskTags.length > 0) {
+      overrides.tags = quickTaskTags;
+    }
+    openCreateModal(Object.keys(overrides).length > 0 ? overrides : undefined);
+    setQuickTaskTitle('');
+    setQuickTaskTags([]);
+    setIsQuickTagOpen(false);
   };
 
   const openEditModal = (task: Task) => {
