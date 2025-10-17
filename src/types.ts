@@ -1,7 +1,7 @@
 export type TaskStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
 
 export type AccentTheme = 'aurora' | 'forest' | 'sunset' | 'midnight';
-export type SurfaceTheme = 'indigo' | 'midnight' | 'slate' | 'charcoal';
+export type SurfaceTheme = 'indigo' | 'dawn' | 'glacier' | 'midnight' | 'slate' | 'charcoal';
 
 export interface Task {
   id: string;

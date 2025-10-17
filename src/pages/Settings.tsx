@@ -78,26 +78,38 @@ export default function SettingsPage() {
     {
       key: 'indigo' as const,
       label: 'Indigo glow',
-      description: 'Original aurora haze',
-      preview: 'linear-gradient(180deg, #020617 0%, #0f172a 60%, #020617 100%)'
+      description: 'Electric blues with aurora haze',
+      preview: 'linear-gradient(180deg, #030617 0%, #13244f 60%, #040617 100%)'
+    },
+    {
+      key: 'dawn' as const,
+      label: 'Dawn ember',
+      description: 'Warm sunrise magentas',
+      preview: 'linear-gradient(180deg, #260610 0%, #5a1d28 60%, #20040d 100%)'
+    },
+    {
+      key: 'glacier' as const,
+      label: 'Glacier drift',
+      description: 'Icy teals with crisp glow',
+      preview: 'linear-gradient(180deg, #001922 0%, #014152 60%, #00131a 100%)'
     },
     {
       key: 'midnight' as const,
-      label: 'Midnight velvet',
-      description: 'Deep navy with soft bloom',
-      preview: 'linear-gradient(180deg, #020617 0%, #111827 60%, #030712 100%)'
+      label: 'Nebula night',
+      description: 'Violet cosmic ambience',
+      preview: 'linear-gradient(180deg, #050019 0%, #1b1242 60%, #080017 100%)'
     },
     {
       key: 'slate' as const,
-      label: 'Slate calm',
-      description: 'Balanced grey-blue dusk',
-      preview: 'linear-gradient(180deg, #0b1120 0%, #1e293b 60%, #0b1120 100%)'
+      label: 'Storm slate',
+      description: 'Moody blue-grey dusk',
+      preview: 'linear-gradient(180deg, #07121f 0%, #1d2f3f 60%, #07121f 100%)'
     },
     {
       key: 'charcoal' as const,
-      label: 'Charcoal focus',
+      label: 'Noir focus',
       description: 'Minimal graphite night',
-      preview: 'linear-gradient(180deg, #050608 0%, #101828 50%, #0b0f1a 100%)'
+      preview: 'linear-gradient(180deg, #040404 0%, #0f1216 55%, #040404 100%)'
     }
   ];
 
