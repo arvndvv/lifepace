@@ -63,11 +63,14 @@ const accentThemeSchema: z.ZodType<AccentTheme> = z.union([
 
 const surfaceThemeSchema: z.ZodType<SurfaceTheme> = z.union([
   z.literal('indigo'),
+  z.literal('aurora'),
   z.literal('dawn'),
+  z.literal('ember'),
   z.literal('glacier'),
   z.literal('midnight'),
   z.literal('slate'),
-  z.literal('charcoal')
+  z.literal('charcoal'),
+  z.literal('lumina')
 ]);
 
 const preferencesSchema = z.object({

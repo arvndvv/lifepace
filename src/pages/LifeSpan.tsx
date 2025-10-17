@@ -7,6 +7,7 @@ import { createId } from '../utils/id';
 import { GoalsGraph, GoalsGraphHandle } from '../components/GoalsGraph';
 import { Portal } from '../components/Portal';
 import { DialogCloseButton } from '../components/DialogCloseButton';
+import { MarkdownContent, MarkdownPlaceholder } from '../components/MarkdownContent';
 
 const CELL_SIZE = 12;
 const CELL_GAP = 2;
@@ -29,6 +30,156 @@ const REFLECTION_LABELS: Record<Exclude<ReflectionTag, 'none'>, string> = {
   advanced: 'Levelled up',
   enjoyed: 'Loved this week'
 };
+
+interface GoalSelectOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+interface GoalSelectProps {
+  label: string;
+  value: string;
+  options: GoalSelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function GoalSelect({ label, value, options, onChange, placeholder = 'Select goal' }: GoalSelectProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const handlePointer = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="space-y-1" ref={containerRef}>
+      <span className="text-xs uppercase text-slate-400">{label}</span>
+      <button
+        type="button"
+        className={`flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 transition-colors hover:border-[color:var(--accent-500)]/60 ${
+          open ? 'border-[color:var(--accent-500)]' : ''
+        }`}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+      >
+        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="z-30 mt-2 max-h-60 w-full overflow-auto rounded-2xl border border-slate-700 bg-slate-900/95 shadow-xl">
+          <ul className="divide-y divide-slate-800/40 text-left text-sm text-slate-100">
+            {options.map((option) => {
+              const active = option.value === value;
+              return (
+                <li key={option.value}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(option.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full flex-col items-start gap-1 px-3 py-2 text-left transition-colors ${
+                      active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/70'
+                    }`}
+                  >
+                    <span className="font-medium">{option.label}</span>
+                    {option.description && (
+                      <span className="text-[11px] text-slate-400">{option.description}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface GoalDescriptionEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  tab: 'write' | 'preview';
+  onTabChange: (tab: 'write' | 'preview') => void;
+  placeholder?: string;
+}
+
+function GoalDescriptionEditor({ value, onChange, tab, onTabChange, placeholder }: GoalDescriptionEditorProps) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs text-slate-400">
+        <button
+          type="button"
+          className={`rounded-full px-3 py-1 transition-colors ${
+            tab === 'write' ? 'bg-[color:var(--accent-600)] text-white' : 'hover:text-white'
+          }`}
+          onClick={() => onTabChange('write')}
+        >
+          Write
+        </button>
+        <button
+          type="button"
+          className={`rounded-full px-3 py-1 transition-colors ${
+            tab === 'preview' ? 'bg-[color:var(--accent-600)] text-white' : 'hover:text-white'
+          }`}
+          onClick={() => onTabChange('preview')}
+        >
+          Preview
+        </button>
+      </div>
+      {tab === 'write' ? (
+        <textarea
+          className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-500)]/30"
+          rows={4}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : value.trim() ? (
+        <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2">
+          <MarkdownContent content={value} className="space-y-3 text-sm" />
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-700 px-3 py-6 text-center text-xs text-slate-400">
+          <MarkdownPlaceholder message="Nothing to preview yet." />
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface ReminderDraftForm {
   title: string;
@@ -106,7 +257,7 @@ export default function LifeSpanPage() {
     yearlyDates: '01-01'
   });
   const [reminderError, setReminderError] = useState<string | null>(null);
-  const [gravity, setGravity] = useState(0.0025);
+  const [gravity, setGravity] = useState(0.01);
   const [goalModal, setGoalModal] = useState<
     | { mode: 'create'; parentId: string }
     | { mode: 'edit'; goalId: string }
@@ -118,6 +269,9 @@ export default function LifeSpanPage() {
     parentId: 'root',
     linkTargetId: 'root'
   });
+  const [goalDetailId, setGoalDetailId] = useState<string | null>(null);
+  const [createGoalTab, setCreateGoalTab] = useState<'write' | 'preview'>('write');
+  const [editGoalTab, setEditGoalTab] = useState<'write' | 'preview'>('write');
   const graphRef = useRef<GoalsGraphHandle | null>(null);
 
   const exportGoalsImage = (canvas: HTMLCanvasElement) => {
@@ -261,21 +415,28 @@ export default function LifeSpanPage() {
   const allGoals = useMemo(() => [rootGoal, ...lifeGoals], [rootGoal, lifeGoals]);
 
   useEffect(() => {
-    if (!goalModal || goalModal.mode !== 'edit') {
+    if (!goalModal) {
       return;
     }
-    const goal = lifeGoals.find((item) => item.id === goalModal.goalId);
-    if (!goal) {
-      setGoalModal(null);
-      return;
+    if (goalModal.mode === 'edit') {
+      const goal = lifeGoals.find((item) => item.id === goalModal.goalId);
+      if (!goal) {
+        setGoalModal(null);
+        return;
+      }
+      const incoming = lifeGoalLinks.find((link) => link.targetId === goal.id);
+      setGoalDetailId(null);
+      setEditGoalTab('write');
+      setGoalForm({
+        title: goal.title,
+        description: goal.description ?? '',
+        parentId: incoming?.sourceId ?? 'root',
+        linkTargetId: 'root'
+      });
+    } else if (goalModal.mode === 'create') {
+      setGoalDetailId(null);
+      setCreateGoalTab('write');
     }
-    const incoming = lifeGoalLinks.find((link) => link.targetId === goal.id);
-    setGoalForm({
-      title: goal.title,
-      description: goal.description ?? '',
-      parentId: incoming?.sourceId ?? 'root',
-      linkTargetId: 'root'
-    });
   }, [goalModal, lifeGoals, lifeGoalLinks]);
 
   const addReminderFromDraft = () => {
@@ -368,22 +529,43 @@ export default function LifeSpanPage() {
     }));
   };
 
-  const goalById = useMemo(() => {
-    const map = new Map<string, LifeGoalNode>();
-    allGoals.forEach((goal) => map.set(goal.id, goal));
-    return map;
-  }, [allGoals]);
+const goalById = useMemo(() => {
+  const map = new Map<string, LifeGoalNode>();
+  allGoals.forEach((goal) => map.set(goal.id, goal));
+  return map;
+}, [allGoals]);
+
+  const goalSelectOptions = useMemo<GoalSelectOption[]>(
+    () => allGoals.map((goal) => ({ value: goal.id, label: goal.title })),
+    [allGoals]
+  );
 
   const openCreateGoal = (parentId: string) => {
     setGoalForm({ title: '', description: '', parentId, linkTargetId: 'root' });
+    setGoalDetailId(null);
+    setCreateGoalTab('write');
     setGoalModal({ mode: 'create', parentId });
   };
 
   const activeGoal = goalModal?.mode === 'edit' ? goalById.get(goalModal.goalId) ?? null : null;
-  const parentOptions = goalModal?.mode === 'edit'
-    ? allGoals.filter((goal) => goal.id !== goalModal.goalId)
-    : allGoals;
-
+  const detailGoal = goalDetailId ? goalById.get(goalDetailId) ?? null : null;
+  const detailParentLink = detailGoal
+    ? lifeGoalLinks.find((link) => link.targetId === detailGoal.id)
+    : null;
+  const detailParent = detailParentLink
+    ? goalById.get(detailParentLink.sourceId) ?? rootGoal
+    : detailGoal
+    ? rootGoal
+    : null;
+  const detailChildren = detailGoal
+    ? lifeGoalLinks
+        .filter((link) => link.sourceId === detailGoal.id)
+        .map((link) => ({
+          linkId: link.id,
+          goal: goalById.get(link.targetId)
+        }))
+        .filter((item): item is { linkId: string; goal: LifeGoalNode } => Boolean(item.goal))
+    : [];
   const ensureLink = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) {
       return;
@@ -404,6 +586,8 @@ export default function LifeSpanPage() {
   const closeGoalModal = () => {
     setGoalModal(null);
     setGoalForm({ title: '', description: '', parentId: 'root', linkTargetId: 'root' });
+    setCreateGoalTab('write');
+    setEditGoalTab('write');
   };
 
   const handleSaveGoal = () => {
@@ -435,7 +619,13 @@ export default function LifeSpanPage() {
     const x = clamp(parent.x + Math.cos(angle) * radius, 80, GOALS_CANVAS.width - 80);
     const y = clamp(parent.y + Math.sin(angle) * radius, 80, GOALS_CANVAS.height - 80);
     const newId = createId();
-    addLifeGoal({ id: newId, title: goalForm.title.trim(), description: goalForm.description.trim() || undefined, position: { x, y } });
+    addLifeGoal({
+      id: newId,
+      title: goalForm.title.trim(),
+      description: goalForm.description.trim() || undefined,
+      x,
+      y
+    });
     ensureLink(goalModal.parentId, newId);
     if (goalForm.linkTargetId && goalForm.linkTargetId !== 'root') {
       ensureLink(newId, goalForm.linkTargetId);
@@ -446,6 +636,9 @@ export default function LifeSpanPage() {
   const handleDeleteGoal = (goalId: string) => {
     deleteLifeGoal(goalId);
     closeGoalModal();
+    if (goalDetailId === goalId) {
+      setGoalDetailId(null);
+    }
   };
 
   const handleSaveManualWin = (tag: Exclude<ReflectionTag, 'none'>) => {
@@ -756,7 +949,7 @@ export default function LifeSpanPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Goals map</h2>
               <p className="text-xs text-slate-400">
-                Your ambitions orbit gently. Nodes keep their distance automatically—click any dot to edit.
+                Your ambitions orbit gently. Drag nodes to rearrange, click to inspect, or double-click to edit.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
@@ -764,14 +957,14 @@ export default function LifeSpanPage() {
                 <span>Gravity</span>
                 <input
                   type="range"
-                  min={0.0005}
-                  max={0.01}
-                  step={0.0005}
+                  min={0.002}
+                  max={0.05}
+                  step={0.001}
                   value={gravity}
                   onChange={(event) => setGravity(Number.parseFloat(event.target.value))}
                 />
-                <span className="w-10 text-right text-[10px] text-slate-500">
-                  {gravity.toFixed(3)}
+                <span className="w-12 text-right text-[10px] text-slate-500">
+                  {(gravity).toFixed(3)}
                 </span>
               </label>
               <button
@@ -798,7 +991,8 @@ export default function LifeSpanPage() {
               if (id === 'root') {
                 openCreateGoal('root');
               } else {
-                setGoalModal({ mode: 'edit', goalId: id });
+                setGoalDetailId(id);
+                setGoalModal(null);
               }
             }}
             width={GOALS_CANVAS.width}
@@ -806,6 +1000,18 @@ export default function LifeSpanPage() {
             isRoot={(id) => id === 'root'}
             gravity={gravity}
             onShare={exportGoalsImage}
+            onNodePositionChange={(id, position) => {
+              if (id === 'root') {
+                return;
+              }
+              updateLifeGoal(id, { x: position.x, y: position.y });
+            }}
+            onNodeDoubleClick={(id) => {
+              if (id === 'root') {
+                return;
+              }
+              setGoalModal({ mode: 'edit', goalId: id });
+            }}
           />
         </section>
       )}
@@ -813,19 +1019,16 @@ export default function LifeSpanPage() {
       {goalModal?.mode === 'create' && (
         <Portal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
-            <div className="w-full max-w-lg rounded-2xl bg-slate-900 p-6 shadow-xl">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-100">Add goal</h2>
-                <button
-                  type="button"
-                  className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 hover:bg-slate-700"
-                  onClick={closeGoalModal}
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900/90 p-6 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.9)]">
+              <header className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-100">Add goal</h2>
+                  <p className="text-xs text-slate-400">Capture the idea, choose its parent, and link it to nearby ambitions.</p>
+                </div>
+                <DialogCloseButton onClick={closeGoalModal} />
+              </header>
               <form
-                className="space-y-3 text-sm"
+                className="space-y-4 text-sm"
                 onSubmit={(event) => {
                   event.preventDefault();
                   handleCreateGoal();
@@ -834,56 +1037,40 @@ export default function LifeSpanPage() {
                 <label className="space-y-1">
                   <span className="text-xs uppercase text-slate-400">Title</span>
                   <input
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-500)]/30"
                     value={goalForm.title}
                     onChange={(event) => setGoalForm((prev) => ({ ...prev, title: event.target.value }))}
                     required
                   />
                 </label>
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Description</span>
-                  <textarea
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2 text-slate-100"
-                    rows={3}
-                    value={goalForm.description}
-                    onChange={(event) => setGoalForm((prev) => ({ ...prev, description: event.target.value }))}
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Belongs to</span>
-                  <select
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2"
-                    value={goalForm.parentId}
-                    onChange={(event) => setGoalForm((prev) => ({ ...prev, parentId: event.target.value }))}
-                  >
-                    {allGoals.map((goal) => (
-                      <option key={goal.id} value={goal.id}>
-                        {goal.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Also link to (optional)</span>
-                  <select
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2"
-                    value={goalForm.linkTargetId}
-                    onChange={(event) => setGoalForm((prev) => ({ ...prev, linkTargetId: event.target.value }))}
-                  >
-                    <option value="root">Select goal</option>
-                    {allGoals
-                      .filter((goal) => goal.id !== goalForm.parentId)
-                      .map((goal) => (
-                        <option key={goal.id} value={goal.id}>
-                          {goal.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+
+                <GoalDescriptionEditor
+                  value={goalForm.description}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, description: next }))}
+                  tab={createGoalTab}
+                  onTabChange={setCreateGoalTab}
+                  placeholder="Add an optional note (Markdown supported)"
+                />
+
+                <GoalSelect
+                  label="Belongs to"
+                  value={goalForm.parentId}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, parentId: next }))}
+                  options={goalSelectOptions}
+                />
+
+                <GoalSelect
+                  label="Also link to"
+                  value={goalForm.linkTargetId}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, linkTargetId: next }))}
+                  placeholder="Optional"
+                  options={[{ value: 'root', label: 'None' }, ...goalSelectOptions.filter((option) => option.value !== goalForm.parentId && option.value !== 'root')]}
+                />
+
                 <div className="flex justify-end gap-2">
                   <button
                     type="submit"
-                    className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-xs font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                    className="rounded-full bg-[color:var(--accent-600)] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
                   >
                     Save goal
                   </button>
@@ -897,34 +1084,28 @@ export default function LifeSpanPage() {
       {goalModal?.mode === 'edit' && activeGoal && (
         <Portal>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur">
-            <div className="w-full max-w-xl rounded-2xl bg-slate-900 p-6 text-sm text-slate-200 shadow-xl">
-              <header className="mb-4 flex items-start justify-between">
+            <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/90 p-6 text-sm text-slate-200 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.9)]">
+              <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold">Edit goal</h2>
-                  <p className="text-xs text-slate-400">Adjust the goal, connect branches, or add subgoals.</p>
+                  <h2 className="text-lg font-semibold text-slate-100">Edit goal</h2>
+                  <p className="text-xs text-slate-400">Refine the idea, change its parent, or link it to new peers.</p>
                 </div>
-                <div className="flex gap-2 text-xs">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="rounded bg-slate-800 px-3 py-1 text-slate-300 hover:bg-slate-700"
+                    className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
                     onClick={() => openCreateGoal(activeGoal.id)}
                   >
                     Add subgoal
                   </button>
                   <button
                     type="button"
-                    className="rounded bg-rose-500/20 px-3 py-1 text-rose-200 hover:bg-rose-500/30"
+                    className="rounded-full border border-rose-500/50 px-3 py-1 text-xs text-rose-200 hover:bg-rose-500/20"
                     onClick={() => handleDeleteGoal(activeGoal.id)}
                   >
                     Delete
                   </button>
-                  <button
-                    type="button"
-                    className="rounded bg-slate-800 px-3 py-1 text-slate-300 hover:bg-slate-700"
-                    onClick={closeGoalModal}
-                  >
-                    Close
-                  </button>
+                  <DialogCloseButton onClick={closeGoalModal} />
                 </div>
               </header>
 
@@ -932,58 +1113,40 @@ export default function LifeSpanPage() {
                 <label className="space-y-1">
                   <span className="text-xs uppercase text-slate-400">Title</span>
                   <input
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-500)]/30"
                     value={goalForm.title}
                     onChange={(event) => setGoalForm((prev) => ({ ...prev, title: event.target.value }))}
                   />
                 </label>
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Belongs to</span>
-                  <select
-                    className="w-full rounded-lg bg-slate-800 px-3 py-2"
-                    value={goalForm.parentId}
-                    onChange={(event) => setGoalForm((prev) => ({ ...prev, parentId: event.target.value }))}
-                  >
-                    {parentOptions.map((goal) => (
-                      <option key={goal.id} value={goal.id}>
-                        {goal.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <GoalSelect
+                  label="Belongs to"
+                  value={goalForm.parentId}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, parentId: next }))}
+                  options={goalSelectOptions.filter((option) => option.value !== activeGoal.id)}
+                />
               </div>
 
-              <label className="mt-3 block space-y-1">
-                <span className="text-xs uppercase text-slate-400">Description</span>
-                <textarea
-                  className="w-full rounded-lg bg-slate-800 px-3 py-2"
-                  rows={3}
+              <div className="mt-3">
+                <GoalDescriptionEditor
                   value={goalForm.description}
-                  onChange={(event) => setGoalForm((prev) => ({ ...prev, description: event.target.value }))}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, description: next }))}
+                  tab={editGoalTab}
+                  onTabChange={setEditGoalTab}
+                  placeholder="Describe why this goal matters"
                 />
-              </label>
+              </div>
 
-              <div className="mt-4 flex flex-wrap items-end gap-2 text-xs">
-                <label className="space-y-1">
-                  <span className="text-xs uppercase text-slate-400">Connect goal to…</span>
-                  <select
-                    className="rounded-lg bg-slate-800 px-3 py-2"
-                    value={goalForm.linkTargetId}
-                    onChange={(event) => setGoalForm((prev) => ({ ...prev, linkTargetId: event.target.value }))}
-                  >
-                    <option value="root">Select goal</option>
-                    {allGoals
-                      .filter((goal) => goal.id !== activeGoal.id)
-                      .map((goal) => (
-                        <option key={goal.id} value={goal.id}>
-                          {goal.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+              <div className="mt-4 flex flex-wrap items-end gap-3 text-xs">
+                <GoalSelect
+                  label="Connect goal to…"
+                  value={goalForm.linkTargetId}
+                  onChange={(next) => setGoalForm((prev) => ({ ...prev, linkTargetId: next }))}
+                  placeholder="Optional"
+                  options={[{ value: 'root', label: 'None' }, ...goalSelectOptions.filter((option) => option.value !== activeGoal.id && option.value !== goalForm.parentId && option.value !== 'root')]}
+                />
                 <button
                   type="button"
-                  className="h-9 rounded bg-slate-800 px-3 text-xs text-slate-200 hover:bg-slate-700"
+                  className="h-9 rounded-full border border-slate-700 px-4 text-xs text-slate-200 transition-colors hover:border-[color:var(--accent-500)]"
                   onClick={() => {
                     if (goalForm.linkTargetId && goalForm.linkTargetId !== 'root') {
                       ensureLink(activeGoal.id, goalForm.linkTargetId);
@@ -995,38 +1158,129 @@ export default function LifeSpanPage() {
                 </button>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-3 text-xs">
-                {lifeGoalLinks
-                  .filter((link) => link.sourceId === activeGoal.id)
-                  .map((link) => {
-                    const target = goalById.get(link.targetId);
-                    if (!target) {
-                      return null;
-                    }
-                    return (
-                      <span key={link.id} className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1">
-                        {target.title}
-                        <button
-                          type="button"
-                          onClick={() => disconnectLifeGoals(link.id)}
-                          className="text-slate-400 hover:text-white"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  })}
-              </div>
+              {lifeGoalLinks.some((link) => link.sourceId === activeGoal.id) && (
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  {lifeGoalLinks
+                    .filter((link) => link.sourceId === activeGoal.id)
+                    .map((link) => {
+                      const target = goalById.get(link.targetId);
+                      if (!target) {
+                        return null;
+                      }
+                      return (
+                        <span key={link.id} className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+                          {target.title}
+                          <button
+                            type="button"
+                            onClick={() => disconnectLifeGoals(link.id)}
+                            className="text-slate-400 hover:text-white"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                </div>
+              )}
 
               <div className="mt-6 flex justify-end gap-2">
                 <button
                   type="button"
-                  className="rounded-lg bg-[color:var(--accent-600)] px-4 py-2 text-xs font-semibold text-white hover:bg-[color:var(--accent-500)]"
+                  className="rounded-full bg-[color:var(--accent-600)] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[color:var(--accent-500)]"
                   onClick={handleSaveGoal}
                 >
                   Save changes
                 </button>
               </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {detailGoal && (
+        <Portal>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/80 backdrop-blur">
+            <div className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/90 p-6 text-sm text-slate-200 shadow-[0_40px_80px_-40px_rgba(15,23,42,0.9)]">
+              <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold text-slate-100">{detailGoal.title}</h2>
+                  {detailParent && detailParent.id !== detailGoal.id && (
+                    <p className="text-xs text-slate-400">
+                      Parent:{' '}
+                      {detailParent.id === 'root' ? (
+                        <span className="font-medium text-slate-200">{detailParent.title}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="font-medium underline-offset-4 transition-colors hover:text-[color:var(--accent-300)]"
+                          onClick={() => setGoalDetailId(detailParent.id)}
+                        >
+                          {detailParent.title}
+                        </button>
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    onClick={() => openCreateGoal(detailGoal.id)}
+                  >
+                    Add subgoal
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:border-slate-500"
+                    onClick={() => {
+                      setGoalModal({ mode: 'edit', goalId: detailGoal.id });
+                      setGoalDetailId(null);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <DialogCloseButton onClick={() => setGoalDetailId(null)} />
+                </div>
+              </header>
+
+              <section className="space-y-6">
+                <div>
+                  <span className="text-xs uppercase text-slate-400">Description</span>
+                  {detailGoal.description ? (
+                    <div className="mt-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2">
+                      <MarkdownContent content={detailGoal.description} className="space-y-3" />
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-400">No description yet.</p>
+                  )}
+                </div>
+
+                {detailChildren.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs uppercase text-slate-400">Direct subgoals</span>
+                    <div className="flex flex-wrap gap-2">
+                      {detailChildren.map(({ linkId, goal }) => (
+                        <span key={linkId} className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1">
+                          <button
+                            type="button"
+                            className="text-xs font-medium hover:text-[color:var(--accent-300)]"
+                            onClick={() => setGoalDetailId(goal.id)}
+                          >
+                            {goal.title}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-white"
+                            onClick={() => disconnectLifeGoals(linkId)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
             </div>
           </div>
         </Portal>

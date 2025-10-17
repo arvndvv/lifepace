@@ -82,9 +82,21 @@ export default function SettingsPage() {
       preview: 'linear-gradient(180deg, #030617 0%, #13244f 60%, #040617 100%)'
     },
     {
+      key: 'aurora' as const,
+      label: 'Aurora classic',
+      description: 'Original teal-indigo blend',
+      preview: 'linear-gradient(180deg, #020617 0%, #0f172a 60%, #020617 100%)'
+    },
+    {
+      key: 'ember' as const,
+      label: 'Ember dusk',
+      description: 'Fiery oranges with rosy glow',
+      preview: 'linear-gradient(180deg, #2b0a14 0%, #632328 60%, #21070d 100%)'
+    },
+    {
       key: 'dawn' as const,
-      label: 'Dawn ember',
-      description: 'Warm sunrise magentas',
+      label: 'Sunrise legacy',
+      description: 'Warm magentas from the earlier theme',
       preview: 'linear-gradient(180deg, #260610 0%, #5a1d28 60%, #20040d 100%)'
     },
     {
@@ -110,6 +122,12 @@ export default function SettingsPage() {
       label: 'Noir focus',
       description: 'Minimal graphite night',
       preview: 'linear-gradient(180deg, #040404 0%, #0f1216 55%, #040404 100%)'
+    },
+    {
+      key: 'lumina' as const,
+      label: 'Lumina daylight',
+      description: 'Soft light mode with gentle warmth',
+      preview: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 60%, #f8fafc 100%)'
     }
   ];
 

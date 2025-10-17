@@ -38,6 +38,8 @@ interface LifeGoalDraft {
   id?: string;
   title: string;
   description?: string;
+  x?: number;
+  y?: number;
   position?: { x: number; y: number };
 }
 
@@ -413,8 +415,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       id: draft.id ?? createId(),
       title: draft.title,
       description: draft.description,
-      x: draft.position?.x ?? 0,
-      y: draft.position?.y ?? 0
+      x: draft.x ?? draft.position?.x ?? 0,
+      y: draft.y ?? draft.position?.y ?? 0
     };
     dispatch({ type: 'addLifeGoal', payload: goal });
   }, []);

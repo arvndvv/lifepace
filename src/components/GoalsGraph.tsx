@@ -10,6 +10,8 @@ interface GoalsGraphProps {
   isRoot: (id: string) => boolean;
   gravity: number;
   onShare: (canvas: HTMLCanvasElement) => void;
+  onNodePositionChange?: (id: string, position: { x: number; y: number }) => void;
+  onNodeDoubleClick?: (id: string) => void;
 }
 
 export interface GoalsGraphHandle {
@@ -19,16 +21,17 @@ export interface GoalsGraphHandle {
 interface SimNode extends LifeGoalNode {
   vx: number;
   vy: number;
+  dragging?: boolean;
 }
 
 type NodeMap = Record<string, SimNode>;
 
 const ROOT_RADIUS = 12;
 const NODE_RADIUS = 5;
-const SPRING_LENGTH = 120;
-const SPRING_STRENGTH = 0.015;
-const REPULSION = 22000;
-const DAMPING = 0.92;
+const SPRING_LENGTH = 110;
+const SPRING_STRENGTH = 0.035;
+const REPULSION = 32000;
+const DAMPING = 0.9;
 
 function GoalsGraphInternal({
   nodes,
@@ -38,12 +41,21 @@ function GoalsGraphInternal({
   height,
   isRoot,
   gravity,
-  onShare
+  onShare,
+  onNodePositionChange,
+  onNodeDoubleClick
 }: GoalsGraphProps, ref: ForwardedRef<GoalsGraphHandle>) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [positions, setPositions] = useState<NodeMap>(() => initialise(nodes));
   const animationRef = useRef<number | null>(null);
   const clickRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const dragRef = useRef<{
+    id: string;
+    offsetX: number;
+    offsetY: number;
+    moved: boolean;
+  } | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPositions((prev) => {
@@ -72,7 +84,7 @@ function GoalsGraphInternal({
 
   useEffect(() => {
     const step = () => {
-      setPositions((prev) => simulate(prev, links, width, height, isRoot, gravity));
+      setPositions((prev) => simulate(prev, links, width, height, isRoot, gravity, draggingIdRef.current));
       draw();
       animationRef.current = requestAnimationFrame(step);
     };
@@ -112,10 +124,19 @@ function GoalsGraphInternal({
       return;
     }
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#020617';
+    const style = getComputedStyle(document.documentElement);
+    const background = style.getPropertyValue('--surface-panel-strong') || '#020617';
+    const linkColor = style.getPropertyValue('--accent-500') || '#38bdf8';
+    const rootFill = style.getPropertyValue('--accent-500') || '#38bdf8';
+    const rootStroke = style.getPropertyValue('--accent-400') || '#2dd4bf';
+    const nodeFill = style.getPropertyValue('--surface-chip') || '#94a3b866';
+    const nodeStroke = style.getPropertyValue('--surface-border') || '#334155';
+    const textColor = style.getPropertyValue('--surface-text-primary') || '#e2e8f0';
+
+    context.fillStyle = background.trim() || '#020617';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.strokeStyle = '#38bdf855';
+    context.strokeStyle = `${linkColor.trim() || '#38bdf8'}55`;
     context.lineWidth = 1.5;
     links.forEach((link) => {
       const source = positions[link.sourceId];
@@ -132,13 +153,17 @@ function GoalsGraphInternal({
     Object.values(positions).forEach((node) => {
       const radius = isRoot(node.id) ? ROOT_RADIUS : NODE_RADIUS;
       context.beginPath();
-      context.fillStyle = isRoot(node.id) ? '#38bdf8' : '#94a3b866';
-      context.strokeStyle = isRoot(node.id) ? '#38bdf8' : '#334155';
-      context.lineWidth = isRoot(node.id) ? 2.5 : 1;
+      context.fillStyle = isRoot(node.id)
+        ? rootFill.trim() || '#38bdf8'
+        : (nodeFill.trim() || '#94a3b866');
+      context.strokeStyle = isRoot(node.id)
+        ? rootStroke.trim() || '#38bdf8'
+        : (nodeStroke.trim() || '#334155');
+      context.lineWidth = isRoot(node.id) ? 2.5 : 1.2;
       context.arc(node.x, node.y, radius, 0, Math.PI * 2);
       context.fill();
       context.stroke();
-      context.fillStyle = '#e2e8f0';
+      context.fillStyle = textColor.trim() || '#e2e8f0';
       context.font = isRoot(node.id) ? '700 15px Inter, sans-serif' : '600 12px Inter, sans-serif';
       context.textAlign = 'left';
       context.textBaseline = 'middle';
@@ -156,6 +181,34 @@ function GoalsGraphInternal({
     const y = event.clientY - rect.top;
     const target = findNodeAt(positions, x, y, isRoot);
     clickRef.current = target ? { id: target.id, x, y } : null;
+    if (target && !isRoot(target.id)) {
+      dragRef.current = {
+        id: target.id,
+        offsetX: x - target.x,
+        offsetY: y - target.y,
+        moved: false
+      };
+      draggingIdRef.current = target.id;
+      setPositions((prev) => {
+        const current = prev[target.id];
+        if (!current) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [target.id]: {
+            ...current,
+            dragging: true,
+            vx: 0,
+            vy: 0
+          }
+        };
+      });
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.style.cursor = 'grabbing';
+      }
+    }
   };
 
   const handlePointerMove = (event: MouseEvent<HTMLCanvasElement>) => {
@@ -166,18 +219,55 @@ function GoalsGraphInternal({
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+    const drag = dragRef.current;
+    if (drag) {
+      setPositions((prev) => {
+        const node = prev[drag.id];
+        if (!node) {
+          return prev;
+        }
+        const next: NodeMap = { ...prev, [drag.id]: { ...node, x: x - drag.offsetX, y: y - drag.offsetY, vx: 0, vy: 0, dragging: true } };
+        drag.moved = true;
+        return next;
+      });
+      return;
+    }
     const target = findNodeAt(positions, x, y, isRoot);
-    canvas.style.cursor = target ? 'pointer' : 'default';
+    canvas.style.cursor = target ? 'grab' : 'default';
   };
 
   const handlePointerUp = () => {
+    const drag = dragRef.current;
     const click = clickRef.current;
-    if (click) {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = 'default';
+    }
+    if (drag?.moved) {
+      const node = positions[drag.id];
+      if (node && onNodePositionChange) {
+        onNodePositionChange(drag.id, { x: node.x, y: node.y });
+      }
+    } else if (click) {
       const node = findNodeAt(positions, click.x, click.y, isRoot);
       if (node) {
         onSelectGoal(node.id);
       }
     }
+    if (drag) {
+      setPositions((prev) => {
+        const node = prev[drag.id];
+        if (!node) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [drag.id]: { ...node, dragging: false }
+        };
+      });
+    }
+    draggingIdRef.current = null;
+    dragRef.current = null;
     clickRef.current = null;
   };
 
@@ -186,6 +276,21 @@ function GoalsGraphInternal({
     if (canvas) {
       canvas.style.cursor = 'default';
     }
+    const drag = dragRef.current;
+    if (drag) {
+      setPositions((prev) => {
+        const node = prev[drag.id];
+        if (!node) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [drag.id]: { ...node, dragging: false }
+        };
+      });
+    }
+    dragRef.current = null;
+    draggingIdRef.current = null;
   };
 
   const handleDoubleClick = (event: MouseEvent<HTMLCanvasElement>) => {
@@ -198,7 +303,11 @@ function GoalsGraphInternal({
     const y = event.clientY - rect.top;
     const node = findNodeAt(positions, x, y, isRoot);
     if (node) {
-      onSelectGoal(node.id);
+      if (onNodeDoubleClick) {
+        onNodeDoubleClick(node.id);
+      } else {
+        onSelectGoal(node.id);
+      }
     }
   };
 
@@ -222,12 +331,16 @@ export const GoalsGraph = forwardRef<GoalsGraphHandle, GoalsGraphProps>(GoalsGra
 function initialise(nodes: LifeGoalNode[]): NodeMap {
   const map: NodeMap = {};
   nodes.forEach((node, index) => {
+    const legacyPosition = (node as unknown as { position?: { x?: number; y?: number } }).position;
+    const initialX = typeof node.x === 'number' ? node.x : legacyPosition?.x;
+    const initialY = typeof node.y === 'number' ? node.y : legacyPosition?.y;
     map[node.id] = {
       ...node,
-      x: node.x || 200 + Math.cos(index) * 60,
-      y: node.y || 200 + Math.sin(index) * 60,
+      x: initialX ?? 200 + Math.cos(index) * 60,
+      y: initialY ?? 200 + Math.sin(index) * 60,
       vx: 0,
-      vy: 0
+      vy: 0,
+      dragging: false
     };
   });
   return map;
@@ -239,7 +352,8 @@ function simulate(
   width: number,
   height: number,
   isRoot: (id: string) => boolean,
-  gravity: number
+  gravity: number,
+  draggingId: string | null
 ): NodeMap {
   const next: NodeMap = {};
   const entries = Object.values(prev);
@@ -263,11 +377,11 @@ function simulate(
       const distance = Math.sqrt(distSq);
       const fx = (force * dx) / distance;
       const fy = (force * dy) / distance;
-      if (!isRoot(nodeA.id)) {
+      if (!isRoot(nodeA.id) && nodeA.id !== draggingId && !nodeA.dragging) {
         nodeA.vx += fx;
         nodeA.vy += fy;
       }
-      if (!isRoot(nodeB.id)) {
+      if (!isRoot(nodeB.id) && nodeB.id !== draggingId && !nodeB.dragging) {
         nodeB.vx -= fx;
         nodeB.vy -= fy;
       }
@@ -286,11 +400,11 @@ function simulate(
     const force = (distance - SPRING_LENGTH) * SPRING_STRENGTH;
     const fx = (force * dx) / distance;
     const fy = (force * dy) / distance;
-    if (!isRoot(source.id)) {
+    if (!isRoot(source.id) && source.id !== draggingId && !source.dragging) {
       source.vx += fx;
       source.vy += fy;
     }
-    if (!isRoot(target.id)) {
+    if (!isRoot(target.id) && target.id !== draggingId && !target.dragging) {
       target.vx -= fx;
       target.vy -= fy;
     }
@@ -308,12 +422,14 @@ function simulate(
       node.y = centerY;
       return;
     }
-    node.vx += (centerX - node.x) * gravity;
-    node.vy += (centerY - node.y) * gravity;
-    node.vx *= DAMPING;
-    node.vy *= DAMPING;
-    node.x += node.vx;
-    node.y += node.vy;
+    if (node.id !== draggingId && !node.dragging) {
+      node.vx += (centerX - node.x) * gravity;
+      node.vy += (centerY - node.y) * gravity;
+      node.vx *= DAMPING;
+      node.vy *= DAMPING;
+      node.x += node.vx;
+      node.y += node.vy;
+    }
     node.x = Math.max(clampMargin, Math.min(width - clampMargin, node.x));
     node.y = Math.max(clampMargin, Math.min(height - clampMargin, node.y));
   });

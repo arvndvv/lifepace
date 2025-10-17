@@ -96,7 +96,31 @@
   --surface-text-subtle: #7080ad;
 }
 
-:root[data-surface='dawn'] {
+:root[data-surface='aurora'] {
+  --surface-top: #020617;
+  --surface-mid: #0f172a;
+  --surface-bottom: #020617;
+  --surface-glow-1: rgba(45, 212, 191, 0.24);
+  --surface-glow-2: rgba(14, 165, 233, 0.18);
+  --surface-panel: rgba(11, 21, 36, 0.88);
+  --surface-panel-soft: rgba(11, 21, 36, 0.72);
+  --surface-panel-strong: rgba(8, 14, 26, 0.94);
+  --surface-panel-glass: rgba(20, 34, 53, 0.36);
+  --surface-input: rgba(4, 9, 20, 0.92);
+  --surface-chip: rgba(19, 33, 51, 0.78);
+  --surface-chip-muted: rgba(19, 33, 51, 0.48);
+  --surface-button: rgba(31, 51, 74, 0.72);
+  --surface-button-hover: rgba(31, 51, 74, 0.88);
+  --surface-border: rgba(45, 212, 191, 0.32);
+  --surface-border-strong: rgba(14, 165, 233, 0.36);
+  --surface-text-primary: #e5f8f4;
+  --surface-text-secondary: #cdece5;
+  --surface-text-tertiary: #a7d8ce;
+  --surface-text-muted: #7bbfb4;
+  --surface-text-subtle: #5aa89d;
+}
+
+:root[data-surface='ember'] {
   --surface-top: #260610;
   --surface-mid: #5b1d2a;
   --surface-bottom: #1a040c;
@@ -118,6 +142,30 @@
   --surface-text-tertiary: #f9adc8;
   --surface-text-muted: #f18ab3;
   --surface-text-subtle: #d66897;
+}
+
+:root[data-surface='dawn'] {
+  --surface-top: #2d0914;
+  --surface-mid: #681f2f;
+  --surface-bottom: #20040d;
+  --surface-glow-1: rgba(255, 196, 150, 0.24);
+  --surface-glow-2: rgba(244, 114, 182, 0.22);
+  --surface-panel: rgba(102, 28, 42, 0.88);
+  --surface-panel-soft: rgba(82, 22, 31, 0.74);
+  --surface-panel-strong: rgba(62, 17, 29, 0.94);
+  --surface-panel-glass: rgba(132, 39, 56, 0.32);
+  --surface-input: rgba(42, 12, 22, 0.9);
+  --surface-chip: rgba(115, 34, 55, 0.72);
+  --surface-chip-muted: rgba(115, 34, 55, 0.48);
+  --surface-button: rgba(168, 58, 79, 0.7);
+  --surface-button-hover: rgba(168, 58, 79, 0.86);
+  --surface-border: rgba(247, 140, 181, 0.35);
+  --surface-border-strong: rgba(253, 186, 116, 0.38);
+  --surface-text-primary: #ffeaf0;
+  --surface-text-secondary: #ffcfdc;
+  --surface-text-tertiary: #f7a5b9;
+  --surface-text-muted: #e7829a;
+  --surface-text-subtle: #ca607c;
 }
 
 :root[data-surface='glacier'] {
@@ -214,6 +262,40 @@
   --surface-text-tertiary: #a6afbd;
   --surface-text-muted: #8a94a5;
   --surface-text-subtle: #6f7786;
+}
+
+:root[data-surface='lumina'] {
+  color-scheme: light;
+  --accent-200: #bae6fd;
+  --accent-300: #7dd3fc;
+  --accent-400: #38bdf8;
+  --accent-500: #0ea5e9;
+  --accent-600: #0284c7;
+  --accent-600-soft: rgba(14, 165, 233, 0.18);
+  --accent-ring: rgba(14, 165, 233, 0.4);
+  --accent-shadow: rgba(14, 165, 233, 0.18);
+  --accent-shadow-strong: rgba(2, 132, 199, 0.28);
+  --surface-top: #f8fafc;
+  --surface-mid: #e2e8f0;
+  --surface-bottom: #f8fafc;
+  --surface-glow-1: rgba(14, 165, 233, 0.18);
+  --surface-glow-2: rgba(56, 189, 248, 0.12);
+  --surface-panel: rgba(255, 255, 255, 0.9);
+  --surface-panel-soft: rgba(248, 250, 252, 0.82);
+  --surface-panel-strong: rgba(237, 242, 247, 0.95);
+  --surface-panel-glass: rgba(226, 232, 240, 0.6);
+  --surface-input: rgba(255, 255, 255, 0.95);
+  --surface-chip: rgba(226, 232, 240, 0.82);
+  --surface-chip-muted: rgba(226, 232, 240, 0.62);
+  --surface-button: rgba(203, 213, 225, 0.72);
+  --surface-button-hover: rgba(203, 213, 225, 0.9);
+  --surface-border: rgba(148, 163, 184, 0.5);
+  --surface-border-strong: rgba(100, 116, 139, 0.6);
+  --surface-text-primary: #0f172a;
+  --surface-text-secondary: #1e293b;
+  --surface-text-tertiary: #334155;
+  --surface-text-muted: #475569;
+  --surface-text-subtle: #64748b;
 }
 
 body {
