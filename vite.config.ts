@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react-swc';
 // When deploying to GitHub Pages under a project site (e.g. github.com/<user>/lifepace),
 // assets need to resolve from "/lifepace/". Default to that repo name, but allow overriding
 // via VITE_PUBLISH_BASE so other environments can set their own base path.
-const repo = process.env.VITE_PUBLISH_BASE ?? 'lifepace';
+const repo = 'lifepace';
 
 const normaliseBase = (value: string): string => {
   if (!value) {
