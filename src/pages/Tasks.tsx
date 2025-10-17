@@ -1053,13 +1053,13 @@ export default function TasksPage() {
                       <p className="mt-1 text-lg font-semibold text-amber-300">{activeYearSummary.summary.progressive}</p>
                     </div>
                     <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Assigned time</p>
+                      <p className="text-[11px] uppercase text-slate-500">Assigned</p>
                       <p className="mt-1 text-sm font-semibold text-slate-100">
                         {formatMinutes(activeYearSummary.summary.assignedMinutes)}
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Spent time</p>
+                      <p className="text-[11px] uppercase text-slate-500">Spent</p>
                       <p className="mt-1 text-sm font-semibold text-slate-100">
                         {formatMinutes(activeYearSummary.summary.spentMinutes)}
                       </p>
