@@ -18,8 +18,8 @@ import type {
   WeekWinEntry
 } from '../types';
 
-const IDB_KEY = 'lifepace/app-state';
-const LOCAL_CACHE_KEY = 'lifepace-cache-v1';
+const IDB_KEY = 'driftcue/app-state';
+const LOCAL_CACHE_KEY = 'driftcue-cache-v1';
 
 const taskStatusSchema = z.union([
   z.literal('planned'),

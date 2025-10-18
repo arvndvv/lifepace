@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lifepace-dynamic-v1';
+const CACHE_NAME = 'driftcue-dynamic-v1';
 const OFFLINE_FALLBACK = new URL('index.html', self.registration.scope).href;
 
 self.addEventListener('install', (event) => {

@@ -1,6 +1,6 @@
-# LifePace
+# Driftcue
 
-LifePace is a local-first progressive web app for planning your days and tracking progress through both tasks and a lifespan calendar. It is built with React, TypeScript, Vite, Tailwind CSS, and the Vite PWA plugin.
+Driftcue is a local-first progressive web app for planning your days and tracking progress through both tasks and a lifespan calendar. It is built with React, TypeScript, Vite, Tailwind CSS, and the Vite PWA plugin.
 
 ## Features
 

@@ -61,7 +61,7 @@ export default function OnboardingModal() {
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-slate-100">Welcome to LifePace</h2>
+            <h2 className="text-xl font-semibold text-slate-100">Welcome to Driftcue</h2>
             <p className="text-sm text-slate-400">A few details help personalise your dashboard.</p>
           </div>
           <DialogCloseButton onClick={() => setIsOpen(false)} />

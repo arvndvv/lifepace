@@ -278,7 +278,7 @@ export default function LifeSpanPage() {
     const data = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = data;
-    link.download = 'lifepace-goals.png';
+    link.download = 'driftcue-goals.png';
     link.click();
   };
 

@@ -59,7 +59,7 @@ export default function AppShell() {
       <div className="mx-auto flex h-screen w-full max-w-5xl flex-col bg-slate-900/90 backdrop-blur md:rounded-3xl md:border md:border-slate-800/80 md:px-8 md:py-6 md:shadow-[0_25px_60px_-20px_rgba(15,23,42,0.8)]">
         <header className="hidden md:flex h-[10%] flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-0">
           <div >
-            <h1 className="text-2xl font-semibold text-slate-100">LifePace</h1>
+            <h1 className="text-2xl font-semibold text-slate-100">Driftcue</h1>
             <p className="text-sm text-slate-400">Design your weeks, honour your life.</p>
           </div>
           <nav className="hidden items-center gap-2 md:flex">

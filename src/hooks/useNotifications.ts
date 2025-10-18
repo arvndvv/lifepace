@@ -56,7 +56,7 @@ export function useNotifications() {
       return;
     }
     const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification?.('LifePace reminder', {
+    await registration.showNotification?.('Driftcue reminder', {
       body: `${task.title} is waiting for you`,
       tag: `task-${task.id}`,
       data: { taskId: task.id }
@@ -80,7 +80,7 @@ export function useNotifications() {
 
       if (supportsTriggers() && window.TimestampTrigger) {
         const trigger = new window.TimestampTrigger(reminderTime);
-        await registration.showNotification?.('LifePace reminder', {
+        await registration.showNotification?.('Driftcue reminder', {
           body: `${task.title} starts soon`,
           tag: `task-${task.id}`,
           data: { taskId: task.id },

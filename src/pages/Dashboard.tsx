@@ -192,7 +192,7 @@ export default function DashboardPage() {
   return (
     <>
       <div className='md:hidden h-[8%] mb-5'>
-        <h1 className="text-2xl font-semibold text-slate-100">LifePace</h1>
+        <h1 className="text-2xl font-semibold text-slate-100">Driftcue</h1>
         <p className="text-sm text-slate-400">Design your weeks, honour your life.</p>
       </div>
       <div className="space-y-6 h-[89%] overflow-y-auto">

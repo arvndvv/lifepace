@@ -212,7 +212,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `lifepace-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.download = `driftcue-backup-${new Date().toISOString().slice(0, 10)}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
     setStatusMessage('Export ready. Check your downloads folder.');
@@ -241,7 +241,7 @@ export default function SettingsPage() {
       });
     } catch (error) {
       console.error(error);
-      setErrorMessage('Import failed. Please ensure the file was exported from LifePace.');
+      setErrorMessage('Import failed. Please ensure the file was exported from Driftcue.');
     } finally {
       event.target.value = '';
     }
