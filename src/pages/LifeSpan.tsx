@@ -666,7 +666,7 @@ const goalById = useMemo(() => {
   const timelineHidden = !preferences.showLifeCalendar;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6  h-full">
       <nav className="flex gap-2 text-sm">
         {(
           [
@@ -696,8 +696,8 @@ const goalById = useMemo(() => {
             You have hidden the weeks-of-life timeline in settings. Toggle it back on to see your calendar here.
           </p>
         ) : (
-          <>
-            <section className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
+          <div className='overflow-y-auto h-[90%] flex flex-col gap-6'>
+            <section className="rounded-3xl border flex-1 border-slate-800 bg-slate-900/80 p-6 shadow-xl">
               <h2 className="text-xl font-semibold text-slate-100">Weeks of your life</h2>
               <p className="mt-2 text-sm text-slate-400">
                 {profile.name}, we&apos;re mapping from your birthday to {profile.lifeExpectancyYears}. Every cell is one week. Rose squares are weeks you have lived, the bright highlight is this week, and grey blocks are still ahead.
@@ -718,7 +718,7 @@ const goalById = useMemo(() => {
               </div>
             </section>
 
-            <section className="space-y-4 overflow-x-auto rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
+            <section className="space-y-4  flex-3 rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
                 <div className="inline-flex rounded-full bg-slate-900/60 p-1">
                   <button
@@ -939,7 +939,7 @@ const goalById = useMemo(() => {
                 </div>
               </Portal>
             )}
-          </>
+          </div>
         )
       )}
 

@@ -248,7 +248,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-auto h-full">
       <section className="rounded-2xl bg-slate-800/70 p-4">
         <h2 className="text-lg font-semibold">Profile & preferences</h2>
         <form className="mt-4 space-y-3 text-sm" onSubmit={onSubmit}>

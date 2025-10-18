@@ -477,11 +477,11 @@ export default function TasksPage() {
   );
 
   const FiltersPanel = () => (
-    <>
-      <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+    <div className='h-[28%] space-y-2'>
+      <div className=" rounded-2xl border border-slate-800 bg-slate-900/70 p-4 ">
 
         <div className="flex flex-col gap-3 md:flex-row md:items-end">
-          <label className="flex-1 space-y-1">
+          {/*<label className="flex-1 space-y-1">
             <span className="text-xs uppercase text-slate-400">Task name</span>
             <input
               type="text"
@@ -561,34 +561,24 @@ export default function TasksPage() {
                 )}
               </div>
             )}
-          </div>
+          </div>*/}
           <div className="flex w-full gap-2 md:w-auto">
             <button
               type="button"
-              className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors md:flex-none ${
-                quickAddDisabled
-                  ? 'cursor-not-allowed bg-slate-800 text-slate-500'
-                  : 'bg-[color:var(--accent-600)] text-white hover:bg-[color:var(--accent-500)]'
-              }`}
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors md:flex-none ${'bg-[color:var(--accent-600)] text-white hover:bg-[color:var(--accent-500)]'
+                }`}
               onClick={handleQuickAddTask}
-              disabled={quickAddDisabled}
             >
               Add task
             </button>
-            <button
-              type="button"
-              className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 transition-colors hover:border-slate-500"
-              onClick={() => openCreateModal()}
-            >
-              Open planner
-            </button>
+
           </div>
         </div>
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[220px]">
+      <div className="space-y-3 flex rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <div className="flex  items-end gap-3 w-full">
+          <div className="flex-2 ">
             <label className="mb-1 block text-xs uppercase text-slate-400">Search tasks</label>
             <input
               type="search"
@@ -599,16 +589,15 @@ export default function TasksPage() {
               className="w-full rounded-xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm text-slate-100 focus:border-[color:var(--accent-500)] focus:outline-none"
             />
           </div>
-          <div className="relative" ref={filterDropdownRef}>
+          <div className="relative flex-1" ref={filterDropdownRef}>
             <label className="mb-1 block text-xs uppercase text-slate-400">Filters</label>
             <button
               type="button"
               onClick={() => setIsFilterOpen((prev) => !prev)}
-              className={`relative flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
-                isFilterOpen || selectedTags.length > 0
-                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/15 text-slate-100'
-                  : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
-              }`}
+              className={`relative flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${isFilterOpen || selectedTags.length > 0
+                ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/15 text-slate-100'
+                : 'border-slate-700 bg-slate-900/60 text-slate-200 hover:border-[color:var(--accent-500)]/60'
+                }`}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -643,17 +632,15 @@ export default function TasksPage() {
                           <button
                             type="button"
                             onClick={() => togglePendingTag(tag)}
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                              active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
-                            }`}
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${active ? 'bg-[color:var(--accent-600)]/20 text-slate-50' : 'hover:bg-slate-800/80'
+                              }`}
                           >
                             <span>{tag}</span>
                             <span
-                              className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                active
-                                  ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
-                                  : 'border-slate-700 text-transparent'
-                              }`}
+                              className={`flex h-5 w-5 items-center justify-center rounded-full border ${active
+                                ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-600)]/30 text-[color:var(--accent-200)]'
+                                : 'border-slate-700 text-transparent'
+                                }`}
                               aria-hidden="true"
                             >
                               ✓
@@ -708,8 +695,8 @@ export default function TasksPage() {
         )}
       </div>
 
-      
-    </>
+
+    </div>
   );
 
   const toggleDescription = (taskId: string) => {
@@ -724,7 +711,7 @@ export default function TasksPage() {
     setQuickTaskTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]));
   };
 
-  const clearQuickTags = (e:any) => {e.stopPropagation();setQuickTaskTags([])};
+  const clearQuickTags = (e: any) => { e.stopPropagation(); setQuickTaskTags([]) };
 
   const openCreateModal = (prefill?: Partial<TaskDraftForm>) => {
     const baseDraft = createPlannerDraft(selectedDate);
@@ -849,16 +836,16 @@ export default function TasksPage() {
   const hasNextPage = page < totalPages;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-2 h-full">
+      <div className="flex flex-wrap items-center justify-between gap-3 h-[6%] ">
         <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-300">
           {(['today', 'week', 'month', 'all'] as TaskViewRange[]).map((range) => (
             <button
               key={range}
               type="button"
               className={`rounded-full px-3 py-1 transition-colors ${rangeFilter === range
-                  ? 'bg-[color:var(--accent-600)] text-white'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                ? 'bg-[color:var(--accent-600)] text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               onClick={() => handleViewChange(range)}
               aria-pressed={rangeFilter === range}
@@ -871,13 +858,13 @@ export default function TasksPage() {
           ))}
         </div>
       </div>
-          
-      <FiltersPanel />
+      <div className='flex flex-col gap-4 h-[92%] '>
+        <FiltersPanel />
 
 
-      {rangeFilter === 'today' && (
-        <section className="space-y-4">
-                      <div>
+        {rangeFilter === 'today' && (
+          <section className="space-y-4 h-[70%]  overflow-y-auto">
+            <div>
               <h2 className="text-lg font-semibold text-slate-200">{selectedDateLabel}</h2>
               <p className="text-xs text-slate-400">
                 {selectedDayTasks.length} task{selectedDayTasks.length === 1 ? '' : 's'} • Assigned{' '}
@@ -898,159 +885,159 @@ export default function TasksPage() {
               </button>
             </div>}
 
-          <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Planned</p>
-              <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.planned)}</p>
+            <div className="grid grid-cols-2 gap-3 text-xs text-slate-300 sm:grid-cols-4  ">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase text-slate-500">Planned</p>
+                <p className="text-lg font-semibold text-slate-100">{selectedDaySummary.total}</p>
+                <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.planned)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase text-slate-500">In progress</p>
+                <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
+                <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.in_progress)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase text-slate-500">Completed</p>
+                <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
+                <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.completed)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                <p className="text-[11px] uppercase text-slate-500">Progressive</p>
+                <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
+                <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.progressiveMinutes)}</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">In progress</p>
-              <p className="text-lg font-semibold text-sky-300">{selectedDaySummary.inProgress}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.in_progress)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Completed</p>
-              <p className="text-lg font-semibold text-emerald-300">{selectedDaySummary.completed}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.statusMinutes.completed)}</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <p className="text-[11px] uppercase text-slate-500">Progressive</p>
-              <p className="text-lg font-semibold text-amber-300">{selectedDaySummary.progressive}</p>
-              <p className="text-[11px] text-slate-500">Time {formatMinutes(selectedDaySummary.progressiveMinutes)}</p>
-            </div>
-          </div>
 
-          {selectedDayTasks.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-              No tasks planned for this day. Add one above.
-            </p>
-          ) : (
-            <>
-              <ul className="space-y-2">
-                {paginatedTasks.map((task) => {
-                  const durationMinutes = getTaskDurationMinutes(task);
-                  return (
-                    <li
-                      key={task.id}
-                      className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
-                      onClick={() => setViewTaskId(task.id)}
-                    >
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="font-medium text-slate-100">{task.title}</h3>
-                              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
-                                {task.status.replace('_', ' ')}
-                              </span>
-                              {task.progressive && (
-                                <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
-                                  Progressive
+            {selectedDayTasks.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                No tasks planned for this day. Add one above.
+              </p>
+            ) : (
+              <>
+                <ul className="space-y-2  pb-2">
+                  {paginatedTasks.map((task) => {
+                    const durationMinutes = getTaskDurationMinutes(task);
+                    return (
+                      <li
+                        key={task.id}
+                        className="rounded-2xl bg-slate-800/70 p-4 cursor-pointer"
+                        onClick={() => setViewTaskId(task.id)}
+                      >
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="font-medium text-slate-100">{task.title}</h3>
+                                <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[11px] uppercase text-slate-300">
+                                  {task.status.replace('_', ' ')}
                                 </span>
-                              )}
-                            </div>
-                            {task.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
-                                {task.tags.map((tag) => (
-                                  <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
-                                    {tag}
+                                {task.progressive && (
+                                  <span className="rounded-full bg-emerald-600/30 px-2 py-0.5 text-[11px] uppercase text-emerald-200">
+                                    Progressive
                                   </span>
-                                ))}
-                              </div>
-                            )}
-                            {task.description && (
-                              <div className="pt-1">
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-2 text-xs text-[color:var(--accent-300)] hover:text-[color:var(--accent-200)]"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    toggleDescription(task.id);
-                                  }}
-                                >
-                                  <span>Description…</span>
-                                  <span>{expandedDescriptions[task.id] ? '▲' : '▼'}</span>
-                                </button>
-                                {expandedDescriptions[task.id] && (
-                                  <div className="mt-2 rounded-xl   px-3 py-2">
-                                    <MarkdownContent content={task.description} />
-                                  </div>
                                 )}
                               </div>
-                            )}
-                            <p className="text-xs text-slate-400">
-                              {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
-                              {task.deadlineAt ? ` • Deadline ${timeLabel(task.deadlineAt)}` : ''}
-                              {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
-                              {task.reminderAt ? ` • Reminder ${timeLabel(task.reminderAt)}` : ''}
-                            </p>
+                              {task.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 text-[11px] text-slate-300">
+                                  {task.tags.map((tag) => (
+                                    <span key={tag} className="rounded-full bg-slate-700/80 px-2 py-0.5">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {task.description && (
+                                <div className="pt-1">
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-2 text-xs text-[color:var(--accent-300)] hover:text-[color:var(--accent-200)]"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      toggleDescription(task.id);
+                                    }}
+                                  >
+                                    <span>Description…</span>
+                                    <span>{expandedDescriptions[task.id] ? '▲' : '▼'}</span>
+                                  </button>
+                                  {expandedDescriptions[task.id] && (
+                                    <div className="mt-2 rounded-xl   px-3 py-2">
+                                      <MarkdownContent content={task.description} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              <p className="text-xs text-slate-400">
+                                {task.startAt ? `Starts ${timeLabel(task.startAt)}` : 'No start time'}
+                                {task.deadlineAt ? ` • Deadline ${timeLabel(task.deadlineAt)}` : ''}
+                                {durationMinutes ? ` • Duration ${formatMinutes(durationMinutes)}` : ''}
+                                {task.reminderAt ? ` • Reminder ${timeLabel(task.reminderAt)}` : ''}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                              <button
+                                className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
+                                onClick={() => openEditModal(task)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
+                                onClick={() => actions.deleteTask(task.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
-                            <button
-                              className="rounded-lg bg-slate-700 px-3 py-1 text-slate-200"
-                              onClick={() => openEditModal(task)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="rounded-lg bg-slate-700 px-3 py-1 text-rose-300"
-                              onClick={() => actions.deleteTask(task.id)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
-                          {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
-                            <button
-                              key={status}
-                              type="button"
-                              className={`rounded-full px-3 py-1 capitalize transition-colors ${task.status === status
+                          <div className="flex flex-wrap gap-2 text-xs" onClick={(event) => event.stopPropagation()}>
+                            {(['planned', 'in_progress', 'completed', 'skipped'] as TaskStatus[]).map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                className={`rounded-full px-3 py-1 capitalize transition-colors ${task.status === status
                                   ? 'bg-[color:var(--accent-600)] text-white'
                                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                }`}
-                              onClick={() => actions.setTaskStatus(task.id, status)}
-                            >
-                              {status.replace('_', ' ')}
-                            </button>
-                          ))}
+                                  }`}
+                                onClick={() => actions.setTaskStatus(task.id, status)}
+                              >
+                                {status.replace('_', ' ')}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
-                  <button
-                    type="button"
-                    className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
-                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={!hasPrevPage}
-                  >
-                    Previous
-                  </button>
-                  <span>
-                    Page {page} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
-                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={!hasNextPage}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </section>
-      )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                    <button
+                      type="button"
+                      className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
+                      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={!hasPrevPage}
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {page} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-full bg-slate-800 px-3 py-1 enabled:hover:bg-slate-700 disabled:opacity-40"
+                      onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={!hasNextPage}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
 
-      {rangeFilter === 'week' && (
-        <section className="space-y-4">
+        {rangeFilter === 'week' && (
+          <section className="space-y-4 h-[70%]  overflow-y-auto">
             <div>
               <h2 className="text-lg font-semibold text-slate-200">Week of {format(weekCursor, 'MMM d')}</h2>
               <p className="text-xs text-slate-400">Select a day to jump into the detailed view.</p>
@@ -1082,40 +1069,40 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-            {weekSummaries.map(({ date, iso, summary }) => {
-              const isSelected = iso === selectedDate;
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  onClick={() => goToDate(iso)}
-                  className={`rounded-2xl border px-3 py-3 text-left transition-colors ${isSelected
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
+              {weekSummaries.map(({ date, iso, summary }) => {
+                const isSelected = iso === selectedDate;
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    onClick={() => goToDate(iso)}
+                    className={`rounded-2xl border px-3 py-3 text-left transition-colors ${isSelected
                       ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
                       : 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
-                    }`}
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span className="font-semibold text-slate-200">{format(date, 'EEE')}</span>
-                    <span>{format(date, 'MMM d')}</span>
-                  </div>
-                  <div className="mt-3 space-y-1 text-[11px] text-slate-300">
-                    <p>Total {summary.total}</p>
-                    <p className="text-emerald-300">Completed {summary.completed}</p>
-                    <p className="text-sky-300">In progress {summary.inProgress}</p>
-                    <p className="text-amber-300">Progressive {summary.progressive}</p>
-                    <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
-                    <p>Spent {formatMinutes(summary.spentMinutes)}</p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                      }`}
+                  >
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span className="font-semibold text-slate-200">{format(date, 'EEE')}</span>
+                      <span>{format(date, 'MMM d')}</span>
+                    </div>
+                    <div className="mt-3 space-y-1 text-[11px] text-slate-300">
+                      <p>Total {summary.total}</p>
+                      <p className="text-emerald-300">Completed {summary.completed}</p>
+                      <p className="text-sky-300">In progress {summary.inProgress}</p>
+                      <p className="text-amber-300">Progressive {summary.progressive}</p>
+                      <p>Assigned {formatMinutes(summary.assignedMinutes)}</p>
+                      <p>Spent {formatMinutes(summary.spentMinutes)}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-      {rangeFilter === 'month' && (
-        <section className="space-y-4">
+        {rangeFilter === 'month' && (
+          <section className="space-y-4 h-[70%]  overflow-y-auto">
             <div>
               <h2 className="text-lg font-semibold text-slate-200">{format(monthCursor, 'MMMM yyyy')}</h2>
               <p className="text-xs text-slate-400">Click a day to open it in the Today view.</p>
@@ -1148,169 +1135,170 @@ export default function TasksPage() {
                 Next
               </button>
             </div>
-          <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-wide text-slate-500">
-            {WEEKDAY_LABELS.map((label) => (
-              <span key={label} className="text-center">
-                {label}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-2 text-xs">
-            {monthGrid.map((week, weekIndex) =>
-              week.map((date, dayIndex) => {
-                const iso = format(date, 'yyyy-MM-dd');
-                const summary = summarizeTasks(tasksByDate.get(iso) ?? []);
-                const inMonth = isSameMonth(date, monthCursor);
-                const isSelected = iso === selectedDate;
-                return (
-                  <button
-                    key={`${weekIndex}-${dayIndex}`}
-                    type="button"
-                    onClick={() => goToDate(iso)}
-                    className={`rounded-xl border px-2 py-2 text-left transition-colors ${isSelected
+            <div className="grid grid-cols-7 gap-2 text-[11px] uppercase tracking-wide text-slate-500">
+              {WEEKDAY_LABELS.map((label) => (
+                <span key={label} className="text-center">
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-2 text-xs">
+              {monthGrid.map((week, weekIndex) =>
+                week.map((date, dayIndex) => {
+                  const iso = format(date, 'yyyy-MM-dd');
+                  const summary = summarizeTasks(tasksByDate.get(iso) ?? []);
+                  const inMonth = isSameMonth(date, monthCursor);
+                  const isSelected = iso === selectedDate;
+                  return (
+                    <button
+                      key={`${weekIndex}-${dayIndex}`}
+                      type="button"
+                      onClick={() => goToDate(iso)}
+                      className={`rounded-xl border px-2 py-2 text-left transition-colors ${isSelected
                         ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10'
                         : inMonth
                           ? 'border-slate-800 bg-slate-900/60 hover:border-[color:var(--accent-500)]/60'
                           : 'border-slate-900 bg-slate-900/30 text-slate-600'
-                      }`}
-                  >
-                    <span className="block text-xs font-semibold text-slate-200">{format(date, 'd')}</span>
-                    {summary.total > 0 && (
-                      <div className="mt-1 space-y-0.5 text-[10px] text-slate-300">
-                        <p className="text-emerald-300">C {summary.completed}</p>
-                        <p className="text-sky-300">P {summary.inProgress}</p>
-                        <p className="text-amber-300">G {summary.progressive}</p>
-                        <p>A {formatMinutes(summary.assignedMinutes)}</p>
-                        <p>S {formatMinutes(summary.spentMinutes)}</p>
-                      </div>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </section>
-      )}
-
-      {rangeFilter === 'all' && (
-        <section className="space-y-4">
-          <div>
-            <div className='flex items-center justify-between gap-3'>
-              <div>
-                      <span className="text-[11px] uppercase tracking-wide text-slate-400">Selected year</span>
-                      <h3 className="text-2xl font-semibold text-slate-100">{activeYearSummary ? activeYearSummary.year : "No-Record"}</h3>
-              </div>
-              {activeYearSummary && (<button
-                      type="button"
-                      className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-[color:var(--accent-500)] hover:text-white"
-                      onClick={() => goToYear(activeYearSummary.year)}
+                        }`}
                     >
-                      View monthly breakdown
-                    </button>)}
-                    </div>
-            <p className="text-xs text-slate-400">Navigate between years to compare your progress.</p>
-          </div>
-          {yearsSummary.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-              No tasks recorded yet. Start planning to see yearly stats.
-            </p>
-          ) : (
-            <>
+                      <span className="block text-xs font-semibold text-slate-200">{format(date, 'd')}</span>
+                      {summary.total > 0 && (
+                        <div className="mt-1 space-y-0.5 text-[10px] text-slate-300">
+                          <p className="text-emerald-300">C {summary.completed}</p>
+                          <p className="text-sky-300">P {summary.inProgress}</p>
+                          <p className="text-amber-300">G {summary.progressive}</p>
+                          <p>A {formatMinutes(summary.assignedMinutes)}</p>
+                          <p>S {formatMinutes(summary.spentMinutes)}</p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        )}
 
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                {previousYearWithData !== null && (
-                  <button
-                    type="button"
-                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
-                    onClick={() => setYearCursor(previousYearWithData)}
-                  >
-                    Previous
-                  </button>
-                )}
-                {showCurrentYearButton && (
-                  <button
-                    type="button"
-                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
-                    onClick={() => setYearCursor(currentYear)}
-                  >
-                    This year
-                  </button>
-                )}
-                {nextYearWithData !== null && (
-                  <button
-                    type="button"
-                    className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
-                    onClick={() => setYearCursor(nextYearWithData)}
-                  >
-                    Next
-                  </button>
-                )}
+        {rangeFilter === 'all' && (
+          <section className="space-y-4 h-[70%]  overflow-y-auto">
+            <div>
+              <div className='flex items-center justify-between gap-3'>
+                <div>
+                  <span className="text-[11px] uppercase tracking-wide text-slate-400">Selected year</span>
+                  <h3 className="text-2xl font-semibold text-slate-100">{activeYearSummary ? activeYearSummary.year : "No-Record"}</h3>
+                </div>
+                {activeYearSummary && (<button
+                  type="button"
+                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-[color:var(--accent-500)] hover:text-white"
+                  onClick={() => goToYear(activeYearSummary.year)}
+                >
+                  View monthly breakdown
+                </button>)}
               </div>
-              
-              {activeYearSummary ? (
-                <div className="space-y-4 rounded-2xl ">
-                
-                  <div className="grid gap-3 text-xs text-slate-300 grid-cols-3 md:grid-cols-3">
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Total</p>
-                      <p className="mt-1 text-lg font-semibold text-slate-100">{activeYearSummary.summary.total}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Completed</p>
-                      <p className="mt-1 text-lg font-semibold text-emerald-300">{activeYearSummary.summary.completed}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Inprogress</p>
-                      <p className="mt-1 text-lg font-semibold text-sky-300">{activeYearSummary.summary.inProgress}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Progressive</p>
-                      <p className="mt-1 text-lg font-semibold text-amber-300">{activeYearSummary.summary.progressive}</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Assigned</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-100">
-                        {formatMinutes(activeYearSummary.summary.assignedMinutes)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
-                      <p className="text-[11px] uppercase text-slate-500">Spent</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-100">
-                        {formatMinutes(activeYearSummary.summary.spentMinutes)}
-                      </p>
+              <p className="text-xs text-slate-400">Navigate between years to compare your progress.</p>
+            </div>
+            {yearsSummary.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                No tasks recorded yet. Start planning to see yearly stats.
+              </p>
+            ) : (
+              <>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  {previousYearWithData !== null && (
+                    <button
+                      type="button"
+                      className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                      onClick={() => setYearCursor(previousYearWithData)}
+                    >
+                      Previous
+                    </button>
+                  )}
+                  {showCurrentYearButton && (
+                    <button
+                      type="button"
+                      className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                      onClick={() => setYearCursor(currentYear)}
+                    >
+                      This year
+                    </button>
+                  )}
+                  {nextYearWithData !== null && (
+                    <button
+                      type="button"
+                      className="rounded-full bg-slate-800 px-3 py-1 hover:bg-slate-700"
+                      onClick={() => setYearCursor(nextYearWithData)}
+                    >
+                      Next
+                    </button>
+                  )}
+                </div>
+
+                {activeYearSummary ? (
+                  <div className="space-y-4 rounded-2xl ">
+
+                    <div className="grid gap-3 text-xs text-slate-300 grid-cols-3 md:grid-cols-3">
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Total</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-100">{activeYearSummary.summary.total}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Completed</p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-300">{activeYearSummary.summary.completed}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Inprogress</p>
+                        <p className="mt-1 text-lg font-semibold text-sky-300">{activeYearSummary.summary.inProgress}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Progressive</p>
+                        <p className="mt-1 text-lg font-semibold text-amber-300">{activeYearSummary.summary.progressive}</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Assigned</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-100">
+                          {formatMinutes(activeYearSummary.summary.assignedMinutes)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2">
+                        <p className="text-[11px] uppercase text-slate-500">Spent</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-100">
+                          {formatMinutes(activeYearSummary.summary.spentMinutes)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-                  No task stats available for {yearCursor}.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      )}
+                ) : (
+                  <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+                    No task stats available for {yearCursor}.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+        )}
 
 
-      <TaskPlannerModal
-        mode={plannerModal?.mode ?? 'create'}
-        open={Boolean(plannerModal)}
-        draft={plannerDraft}
-        allocation={plannerAllocation}
-        preferences={preferences}
-        availableTags={taskTags}
-        error={plannerError}
-        onClose={closePlannerModal}
-        onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
-        onSubmit={handlePlannerSubmit}
-      />
+        <TaskPlannerModal
+          mode={plannerModal?.mode ?? 'create'}
+          open={Boolean(plannerModal)}
+          draft={plannerDraft}
+          allocation={plannerAllocation}
+          preferences={preferences}
+          availableTags={taskTags}
+          error={plannerError}
+          onClose={closePlannerModal}
+          onChange={(updates) => setPlannerDraft((prev) => ({ ...prev, ...updates }))}
+          onSubmit={handlePlannerSubmit}
+        />
 
-      <TaskDetailsDialog
-        task={viewTask}
-        open={Boolean(viewTask)}
-        onClose={() => setViewTaskId(null)}
-        onEdit={(task) => openEditModal(task)}
-      />
+        <TaskDetailsDialog
+          task={viewTask}
+          open={Boolean(viewTask)}
+          onClose={() => setViewTaskId(null)}
+          onEdit={(task) => openEditModal(task)}
+        />
+      </div>
     </div>
   );
 }
