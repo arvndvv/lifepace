@@ -30,7 +30,7 @@ export default function App() {
             swURL: swURL.href
           });
           const registration = await navigator.serviceWorker.register(swURL.href, {
-            scope: baseURL.pathname
+            scope: import.meta.env.BASE_URL
           });
 
           console.info('[PWA] Service worker registered', registration.scope);
