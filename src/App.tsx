@@ -9,7 +9,8 @@ import TasksPage from './pages/Tasks';
 import LifeSpanPage from './pages/LifeSpan';
 import StatsPage from './pages/Stats';
 import SettingsPage from './pages/Settings';
-
+import bgImage from './assets/bg/bg.png';
+import { DriftCover } from './components/shared/DriftCover';
 export default function App() {
   const {
     loading,
@@ -99,9 +100,17 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-300">
-        Loading your data…
-      </div>
+      <DriftCover LoaderText='Loading your data…'/>
+      // <div style={{
+      //   backgroundImage: `url(${bgImage})`,
+      //   backgroundSize: 'contain',
+      //   backgroundPosition: 'top',
+      //   backgroundRepeat: 'no-repeat',
+      //   width: '100vw',
+      //   backgroundColor: '#eeeae7'
+      // }}className="flex  h-screen items-end justify-center  text-slate-500 relative">
+      //   <span className='absolute bottom-[10%]'>Loading your data…</span>
+      // </div>
     );
   }
 
@@ -109,7 +118,7 @@ export default function App() {
     <>
       <ReminderWatcher />
       <OnboardingModal />
-      <Suspense fallback={<div className="p-4 text-slate-300">Loading…</div>}>
+      <Suspense fallback={<DriftCover LoaderText='Loading…'/>}>
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<DashboardPage />} />

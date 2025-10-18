@@ -305,7 +305,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'hydrate', payload: loaded });
       }
       if (mounted) {
-        setLoading(false);
+        setTimeout(()=>setLoading(false),1000);
         setHydrated(true);
       }
     });
